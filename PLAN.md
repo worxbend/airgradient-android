@@ -871,6 +871,40 @@ Settings screen:
 
 ## Android Implementation Phases
 
+## Implementation Progress
+
+### Iteration 2 — Phase 1 Android Project Baseline
+
+Implemented a native Android project baseline:
+
+```text
+- Gradle wrapper added with Gradle 8.14.3
+- Android application module created under app/
+- Kotlin + Jetpack Compose + Material 3 configured
+- Compose previewable dashboard placeholder added
+- Android manifest includes INTERNET and ACCESS_NETWORK_STATE
+- adaptive launcher icon placeholder added
+- ktlint and detekt configured
+- baseline README and docs created
+```
+
+Tooling decisions:
+
+```text
+- Android Gradle Plugin 8.13.2 is used with Kotlin 2.3.20.
+- AGP 9.x was not used because it rejects the explicit org.jetbrains.kotlin.android plugin, while TECH.md requires the standard Kotlin plugin stack.
+- compileSdk/targetSdk are 36 because the local SDK has API 36 installed and selected AndroidX versions are pinned to API 36-compatible releases.
+- Java bytecode targets JVM 17 while Gradle runs on the configured JDK 21.
+- Hilt and KSP plugin aliases/dependencies are present in the catalog for later DI phases, but not applied in the app module until injection is actually introduced.
+```
+
+Validation passed:
+
+```bash
+./gradlew test ktlintCheck detekt lint
+./gradlew clean build
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
