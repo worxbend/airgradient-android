@@ -19,3 +19,8 @@
 2026-06-16T00:00:00Z iteration 4 implemented Phase 3 network repository with Retrofit API, typed errors, recursive JSON mapper, TVOC/NOx unit inference, repository implementation, and MockWebServer tests
 2026-06-16T00:00:00Z iteration 4 validation passed commands="./gradlew test" "./gradlew ktlintCheck" "./gradlew detekt" "./gradlew lint" "./gradlew clean build"
 2026-06-16T00:00:00Z iteration 4 committed checkpoint commit=92ff540
+2026-06-15T23:35:27Z iteration 4 no changes to commit
+2026-06-15T23:35:27Z iteration 4 completed validation_status=0
+2026-06-15T23:35:27Z iteration 5 started remaining=15661s
+2026-06-15T23:41:47Z iteration 5 implemented Phase 4 settings persistence with AppSettings, SettingsRepository, DataStore-backed settings data source, URL normalization on save, interval clamping, and repository tests
+2026-06-15T23:41:47Z iteration 5 validation passed commands="./gradlew test" "./gradlew ktlintCheck" "./gradlew detekt" "./gradlew lint" "./gradlew clean build"

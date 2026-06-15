@@ -962,6 +962,31 @@ Validation passed:
 ./gradlew clean build
 ```
 
+### Iteration 5 — Phase 4 Settings Persistence
+
+Implemented persistent app settings:
+
+```text
+- AppSettings domain model with Android defaults
+- SettingsRepository contract with typed device URL save results
+- ObserveSettingsUseCase and SaveDeviceUrlUseCase
+- DataStore-backed SettingsDataSource and SettingsRepositoryImpl
+- Context DataStore delegate for application wiring in later UI phases
+- refresh interval clamping to 5..3600 seconds
+- device URL normalization before persistence, with invalid URLs rejected without mutating stored state
+- notifications defaulted to false and theme mode defaulted to system
+```
+
+Validation passed:
+
+```bash
+./gradlew test
+./gradlew ktlintCheck
+./gradlew detekt
+./gradlew lint
+./gradlew clean build
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
