@@ -937,6 +937,31 @@ Validation passed:
 ./gradlew clean build
 ```
 
+### Iteration 4 — Phase 3 Networking and Repository Layer
+
+Implemented the local AirGradient data slice:
+
+```text
+- typed AirGradientError and AirGradientRepository contracts
+- Retrofit API for GET /measures/current backed by OkHttp
+- 8-second production request timeout via NetworkModule
+- AirGradientRemoteDataSource with typed HTTP, timeout, unreachable, invalid URL, and malformed-payload failures
+- AirGradientMeasureDto wrapping flexible JsonObject payloads
+- AirGradientMeasureMapper with recursive alias lookup, numeric-string parsing, compensated temperature/humidity preference, AQI fallback, and TVOC/NOx unit inference
+- AirGradientRepositoryImpl that normalizes configured URLs before fetching
+- SensorMeasurementUnit added so TVOC/NOx cards can render index or ppb units from payload context
+```
+
+Validation passed:
+
+```bash
+./gradlew test
+./gradlew ktlintCheck
+./gradlew detekt
+./gradlew lint
+./gradlew clean build
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

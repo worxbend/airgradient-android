@@ -8,11 +8,11 @@ GET /measures/current
 
 Reference repository analysis in `PLAN.md` documents the accepted JSON aliases, threshold logic, AQI fallback behavior, trend behavior, notification policy, and URL normalization rules.
 
-Implemented in the current domain layer:
+Implemented in the current codebase:
 
 - `DeviceUrlNormalizer` normalizes empty, bare-host, HTTP, and HTTPS inputs and rejects unsupported schemes or missing/whitespace hosts.
 - `SensorThresholds` classifies AQI, CO2, PM2.5, TVOC, NOx, and overall status from the reference thresholds.
 - `AqiCalculator` derives fallback US AQI from PM2.5 when explicit AQI is unavailable.
 - `TrendCalculator` compares the current reading with the previous successful reading and formats stable/up/down deltas.
-
-The next data phase will add JSON alias parsing, recursive payload lookup, unit inference for TVOC/NOx, and typed HTTP error mapping.
+- `AirGradientMeasureMapper` parses the reference aliases, numeric strings, and nested payloads; prefers compensated temperature and humidity; ignores malformed optional sensor values; and infers TVOC/NOx units from `Index` aliases.
+- `AirGradientRemoteDataSource` requests `/measures/current` through Retrofit/OkHttp and maps non-2xx, timeout, unreachable, invalid URL, and malformed JSON responses to typed failures.

@@ -18,6 +18,7 @@ object SensorMetricFactory {
         current: AirMeasureSnapshot,
         previous: AirMeasureSnapshot?,
     ): SensorMetric {
+        val unit = unitReader(current)
         val value = valueReader(current)
         val previousValue = previous?.let(valueReader)
         val status = statusReader(current)
@@ -54,7 +55,7 @@ object SensorMetricFactory {
     private data class MetricDefinition(
         val kind: SensorMetricKind,
         val displayName: String,
-        val unit: String,
+        val unitReader: (AirMeasureSnapshot) -> String,
         val lowerIsBetter: Boolean,
         val valueReader: (AirMeasureSnapshot) -> Double?,
         val statusReader: (AirMeasureSnapshot) -> SensorStatus,
@@ -66,7 +67,7 @@ object SensorMetricFactory {
             MetricDefinition(
                 kind = SensorMetricKind.AQI,
                 displayName = "AQI",
-                unit = "",
+                unitReader = { "" },
                 lowerIsBetter = true,
                 valueReader = { it.aqi?.toDouble() },
                 statusReader = { SensorThresholds.classifyAqi(it.aqi) },
@@ -75,7 +76,7 @@ object SensorMetricFactory {
             MetricDefinition(
                 kind = SensorMetricKind.TEMPERATURE,
                 displayName = "Temperature",
-                unit = "C",
+                unitReader = { "C" },
                 lowerIsBetter = false,
                 valueReader = AirMeasureSnapshot::temperatureCelsius,
                 statusReader = { SensorStatus.UNKNOWN },
@@ -84,7 +85,7 @@ object SensorMetricFactory {
             MetricDefinition(
                 kind = SensorMetricKind.HUMIDITY,
                 displayName = "Humidity",
-                unit = "%",
+                unitReader = { "%" },
                 lowerIsBetter = false,
                 valueReader = AirMeasureSnapshot::humidityPercent,
                 statusReader = { SensorStatus.UNKNOWN },
@@ -93,7 +94,7 @@ object SensorMetricFactory {
             MetricDefinition(
                 kind = SensorMetricKind.CO2,
                 displayName = "CO2",
-                unit = "ppm",
+                unitReader = { "ppm" },
                 lowerIsBetter = true,
                 valueReader = AirMeasureSnapshot::co2,
                 statusReader = { SensorThresholds.classifyCo2(it.co2) },
@@ -102,7 +103,7 @@ object SensorMetricFactory {
             MetricDefinition(
                 kind = SensorMetricKind.PM25,
                 displayName = "PM2.5",
-                unit = "ug/m3",
+                unitReader = { "ug/m3" },
                 lowerIsBetter = true,
                 valueReader = AirMeasureSnapshot::pm25,
                 statusReader = { SensorThresholds.classifyPm25(it.pm25) },
@@ -111,7 +112,7 @@ object SensorMetricFactory {
             MetricDefinition(
                 kind = SensorMetricKind.PM01,
                 displayName = "PM1.0",
-                unit = "ug/m3",
+                unitReader = { "ug/m3" },
                 lowerIsBetter = true,
                 valueReader = AirMeasureSnapshot::pm01,
                 statusReader = { SensorStatus.UNKNOWN },
@@ -120,7 +121,7 @@ object SensorMetricFactory {
             MetricDefinition(
                 kind = SensorMetricKind.PM10,
                 displayName = "PM10",
-                unit = "ug/m3",
+                unitReader = { "ug/m3" },
                 lowerIsBetter = true,
                 valueReader = AirMeasureSnapshot::pm10,
                 statusReader = { SensorStatus.UNKNOWN },
@@ -129,7 +130,7 @@ object SensorMetricFactory {
             MetricDefinition(
                 kind = SensorMetricKind.PM003_COUNT,
                 displayName = "PM0.3",
-                unit = "count",
+                unitReader = { "count" },
                 lowerIsBetter = true,
                 valueReader = AirMeasureSnapshot::pm003Count,
                 statusReader = { SensorStatus.UNKNOWN },
@@ -138,7 +139,7 @@ object SensorMetricFactory {
             MetricDefinition(
                 kind = SensorMetricKind.TVOC,
                 displayName = "TVOC",
-                unit = "index",
+                unitReader = { it.tvocUnit.displayLabel },
                 lowerIsBetter = true,
                 valueReader = AirMeasureSnapshot::tvoc,
                 statusReader = { SensorThresholds.classifyTvoc(it.tvoc) },
@@ -147,7 +148,7 @@ object SensorMetricFactory {
             MetricDefinition(
                 kind = SensorMetricKind.NOX,
                 displayName = "NOx",
-                unit = "index",
+                unitReader = { it.noxUnit.displayLabel },
                 lowerIsBetter = true,
                 valueReader = AirMeasureSnapshot::nox,
                 statusReader = { SensorThresholds.classifyNox(it.nox) },
