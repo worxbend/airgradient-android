@@ -17,6 +17,8 @@ Current baseline:
 - `data/airgradient` contains the Retrofit API, remote data source, DTO wrapper, mapper, and repository implementation for `/measures/current`.
 - `data/settings` contains the DataStore preferences delegate, settings data source, and settings repository implementation.
 - `core/network` and `core/time` contain app-wide network construction and injectable time access.
+- `core/dispatchers` contains injectable coroutine dispatcher grouping for ViewModels and use cases.
+- `presentation/dashboard` contains the dashboard UI state model, presentation formatting, and ViewModel refresh orchestration.
 
 Planned package responsibilities:
 
@@ -37,3 +39,9 @@ The mapper accepts flexible JSON payloads rather than fixed DTO fields because A
 Settings are represented by the pure domain `AppSettings` model and exposed through `SettingsRepository.settings` as a `Flow`. The DataStore implementation persists the normalized device base URL, refresh interval, notification toggle, and theme mode.
 
 The settings repository normalizes device URLs before storage. Blank input clears the configured device, bare hosts gain `http://`, and invalid URLs return `SaveDeviceUrlResult.Invalid` without changing the stored value. Refresh intervals are clamped to the source-derived `5..3600` second range. Android intentionally defaults notifications to disabled and theme mode to system.
+
+## Dashboard State
+
+`DashboardViewModel` observes `SettingsRepository` through `ObserveSettingsUseCase`. When no device URL is configured it emits `DashboardUiState.Unconfigured` and does not fetch. When configured, it performs an initial refresh and starts an active-screen auto-refresh loop using the stored interval.
+
+Refreshes are guarded by a coroutine mutex so manual refresh and timer refresh cannot overlap. Successful readings keep both the latest and previous snapshots in memory so `SensorMetricFactory` can produce trend-aware metrics. Fetch failures do not erase the last successful reading: the ViewModel emits `ContentWithWarning` when possible, or `Error` when no snapshot has ever loaded.

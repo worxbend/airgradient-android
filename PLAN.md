@@ -987,6 +987,40 @@ Validation passed:
 ./gradlew clean build
 ```
 
+### Iteration 6 — Phase 5 Dashboard ViewModel
+
+Implemented dashboard state management:
+
+```text
+- AppDispatchers abstraction for injectable coroutine dispatchers
+- GetCurrentMeasurementUseCase and RefreshDashboardUseCase
+- explicit DashboardUiState sealed model with Unconfigured, Loading, Content, ContentWithWarning, and Error states
+- DashboardViewModel observing settings, triggering initial refresh, and auto-refreshing on the configured interval while active
+- in-flight refresh guard to prevent overlapping manual and timer refreshes
+- previous/latest successful snapshot retention for trend calculation
+- transient fetch failures render ContentWithWarning when a last successful reading exists
+- presentation formatter for deterministic last-updated labels and safe user-facing error text
+- ViewModel unit tests covering unconfigured startup, content loading, stale-content warning, overlap prevention, and auto-refresh interval behavior
+```
+
+Behavior notes:
+
+```text
+- The Phase 5 slice keeps constructor-injected ViewModel wiring testable without introducing Hilt modules yet.
+- Compose route/screen integration remains for Phase 6, where the placeholder dashboard will be replaced with state-driven UI components.
+- Auto-refresh uses the configured interval from settings and does not start when no device URL is configured.
+```
+
+Validation passed:
+
+```bash
+./gradlew test
+./gradlew ktlintCheck
+./gradlew detekt
+./gradlew lint
+./gradlew clean build
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
