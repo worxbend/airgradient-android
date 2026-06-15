@@ -905,6 +905,38 @@ Validation passed:
 ./gradlew clean build
 ```
 
+### Iteration 3 — Phase 2 Domain Model and Sensor Logic
+
+Implemented the first pure Kotlin domain slice:
+
+```text
+- AirMeasureSnapshot, SensorMetric, SensorStatus, Trend, and AppThemeMode domain models
+- DeviceUrlNormalizer with reference-compatible base URL normalization
+- SensorThresholds with CO2, PM2.5, AQI, TVOC, NOx, and overall status classification
+- AqiCalculator with PM2.5 fallback interpolation and clamping
+- TrendCalculator with missing/stable/up/down behavior and reference-style number formatting
+- SensorMetricFactory for dashboard-ready immutable metric models
+```
+
+Behavior notes:
+
+```text
+- Domain code is Android-framework-free and lives under app/src/main/java/dev/worxbend/airgradient/domain/.
+- Trend labels use Unicode arrows to preserve the reference implementation's presentation semantics; future Compose UI may replace these labels with icons while keeping the same direction model.
+- TVOC and NOx metric units are currently emitted as "index" by SensorMetricFactory; the Phase 3 mapper will preserve payload unit inference before this reaches UI.
+- PM1.0, PM10, PM0.3 count, temperature, and humidity remain informational/unknown status metrics, matching the reference findings.
+```
+
+Validation passed:
+
+```bash
+./gradlew test
+./gradlew ktlintCheck
+./gradlew detekt
+./gradlew lint
+./gradlew clean build
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
