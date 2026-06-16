@@ -23,6 +23,7 @@ sdk.dir=/home/worxbend/Android/Sdk
 ./gradlew lint
 ./gradlew ktlintCheck
 ./gradlew detekt
+./gradlew assembleDebugAndroidTest
 ./gradlew assembleDebug
 ./gradlew assembleRelease
 ```

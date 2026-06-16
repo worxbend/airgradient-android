@@ -1161,6 +1161,32 @@ Validation passed:
 ./gradlew assembleRelease
 ```
 
+### Iteration 12 — Compose UI Test Coverage
+
+Implemented the first instrumentation UI test slice:
+
+```text
+- added standard AndroidX test dependencies and Compose UI test manifest support
+- added DashboardScreen Compose tests for unconfigured, content, and error states
+- added SettingsScreen Compose tests for URL validation copy, save/test actions, connection success/failure copy, notification permission denial copy, refresh interval selection, and theme selection
+- kept tests at the stateless screen boundary so they validate user-visible behavior without networking or persistence
+```
+
+Validation passed:
+
+```bash
+./gradlew ktlintCheck assembleDebugAndroidTest
+./gradlew test ktlintCheck detekt lint
+./gradlew clean build
+./gradlew assembleRelease
+```
+
+Behavior notes:
+
+```text
+- `assembleDebugAndroidTest` compiles and packages the instrumentation tests; `connectedDebugAndroidTest` still requires an attached emulator or device and was not run in this headless iteration.
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

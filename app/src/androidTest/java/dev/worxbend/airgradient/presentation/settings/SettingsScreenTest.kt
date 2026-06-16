@@ -1,0 +1,172 @@
+package dev.worxbend.airgradient.presentation.settings
+
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.worxbend.airgradient.domain.error.AirGradientError
+import dev.worxbend.airgradient.domain.model.AppThemeMode
+import dev.worxbend.airgradient.presentation.theme.AirGradientTheme
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+
+@RunWith(AndroidJUnit4::class)
+class SettingsScreenTest {
+    @get:Rule
+    val composeRule = createComposeRule()
+
+    @Test
+    fun invalidDeviceUrlStateShowsValidationCopyAndActions() {
+        val saveClicks = AtomicInteger(0)
+        val testClicks = AtomicInteger(0)
+
+        composeRule.setContent {
+            AirGradientTheme(dynamicColor = false) {
+                SettingsScreen(
+                    state =
+                        SettingsUiState(
+                            deviceUrlInput = "ftp://airgradient.local",
+                            deviceUrlPreview = DeviceUrlPreview.Invalid,
+                            connectionTestState = ConnectionTestState.InvalidInput,
+                        ),
+                    onNavigateBack = {},
+                    actions =
+                        actions(
+                            onSaveDeviceUrl = { saveClicks.incrementAndGet() },
+                            onTestConnection = { testClicks.incrementAndGet() },
+                        ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Use http or https with a valid host.").assertIsDisplayed()
+        composeRule.onNodeWithText("Enter a valid device URL before testing.").assertIsDisplayed()
+        composeRule.onNodeWithText("Save").performClick()
+        composeRule.onNodeWithText("Test connection").performClick()
+
+        composeRule.runOnIdle {
+            check(saveClicks.get() == 1)
+            check(testClicks.get() == 1)
+        }
+    }
+
+    @Test
+    fun validDeviceUrlStateShowsEndpointPreviewAndConnectionSuccess() {
+        composeRule.setContent {
+            AirGradientTheme(dynamicColor = false) {
+                SettingsScreen(
+                    state =
+                        SettingsUiState(
+                            deviceUrlInput = "192.168.1.201",
+                            deviceUrlPreview = DeviceUrlPreview.Valid("http://192.168.1.201"),
+                            saveState = DeviceUrlSaveState.Saved("http://192.168.1.201"),
+                            connectionTestState = ConnectionTestState.Success("http://192.168.1.201"),
+                        ),
+                    onNavigateBack = {},
+                    actions = actions(),
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText("Saved http://192.168.1.201.")
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Connected to http://192.168.1.201.")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsControlsDispatchSelectionCallbacks() {
+        val selectedInterval = AtomicReference<Int>()
+        val selectedTheme = AtomicReference<AppThemeMode>()
+
+        composeRule.setContent {
+            AirGradientTheme(dynamicColor = false) {
+                SettingsScreen(
+                    state = SettingsUiState(refreshIntervalSeconds = 30),
+                    onNavigateBack = {},
+                    actions =
+                        actions(
+                            onRefreshIntervalSelected = selectedInterval::set,
+                            onThemeModeSelected = selectedTheme::set,
+                        ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Refresh").performScrollTo()
+        composeRule.onNodeWithText("1m").performClick()
+        composeRule.onNodeWithText("Appearance").performScrollTo()
+        composeRule.onNodeWithText("Dark").performClick()
+
+        composeRule.runOnIdle {
+            check(selectedInterval.get() == 60)
+            check(selectedTheme.get() == AppThemeMode.DARK)
+        }
+    }
+
+    @Test
+    fun notificationPermissionDeniedStateShowsDenialCopy() {
+        composeRule.setContent {
+            AirGradientTheme(dynamicColor = false) {
+                SettingsScreen(
+                    state = SettingsUiState(notificationPermissionDenied = true),
+                    onNavigateBack = {},
+                    actions = actions(),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Notifications").performScrollTo()
+        composeRule
+            .onNodeWithText("Android notification permission was denied. Alerts remain off.")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun connectionFailureStateShowsMappedErrorMessage() {
+        composeRule.setContent {
+            AirGradientTheme(dynamicColor = false) {
+                SettingsScreen(
+                    state =
+                        SettingsUiState(
+                            connectionTestState =
+                                ConnectionTestState.Failure(
+                                    error = AirGradientError.DeviceUnreachable,
+                                    message = "The device could not be reached on the local network.",
+                                ),
+                        ),
+                    onNavigateBack = {},
+                    actions = actions(),
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText("The device could not be reached on the local network.")
+            .assertIsDisplayed()
+    }
+
+    private fun actions(
+        onDeviceUrlChanged: (String) -> Unit = {},
+        onSaveDeviceUrl: () -> Unit = {},
+        onTestConnection: () -> Unit = {},
+        onRefreshIntervalSelected: (Int) -> Unit = {},
+        onNotificationsEnabledChanged: (Boolean) -> Unit = {},
+        onThemeModeSelected: (AppThemeMode) -> Unit = {},
+    ): SettingsScreenActions =
+        SettingsScreenActions(
+            onDeviceUrlChanged = onDeviceUrlChanged,
+            onSaveDeviceUrl = onSaveDeviceUrl,
+            onTestConnection = onTestConnection,
+            onRefreshIntervalSelected = onRefreshIntervalSelected,
+            onNotificationsEnabledChanged = onNotificationsEnabledChanged,
+            onThemeModeSelected = onThemeModeSelected,
+        )
+}

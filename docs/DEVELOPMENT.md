@@ -19,6 +19,14 @@ Run the focused checks before committing:
 
 Run `./gradlew clean build` before phase-level checkpoints when practical.
 
+Compile/package Compose instrumentation tests with:
+
+```bash
+./gradlew assembleDebugAndroidTest
+```
+
+Run `./gradlew connectedDebugAndroidTest` only when an emulator or physical device is attached.
+
 Run release assembly before release-readiness checkpoints:
 
 ```bash
