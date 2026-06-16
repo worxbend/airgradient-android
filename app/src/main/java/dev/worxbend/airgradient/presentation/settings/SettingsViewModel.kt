@@ -66,11 +66,20 @@ class SettingsViewModel(
 
                 is SaveDeviceUrlResult.Saved -> {
                     isDeviceUrlDirty = false
+                    if (result.serverUrl == null) {
+                        monitoringServiceController.stopMonitoring()
+                    }
                     _uiState.update { state ->
                         state.copy(
                             deviceUrlInput = result.serverUrl.orEmpty(),
                             deviceUrlPreview = result.serverUrl.toDeviceUrlPreview(),
                             saveState = DeviceUrlSaveState.Saved(result.serverUrl),
+                            monitoringActionState =
+                                if (result.serverUrl == null) {
+                                    MonitoringActionState.Stopped
+                                } else {
+                                    state.monitoringActionState
+                                },
                         )
                     }
                 }

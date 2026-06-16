@@ -42,7 +42,7 @@ The mapper accepts flexible JSON payloads rather than fixed DTO fields because A
 
 Settings are represented by the pure domain `AppSettings` model and exposed through `SettingsRepository.settings` as a `Flow`. The DataStore implementation persists the normalized device base URL, refresh interval, notification toggle, minimum alert severity, recovery/unreachable alert preferences, and theme mode.
 
-The settings repository normalizes device URLs before storage. Blank input clears the configured device, bare hosts gain `http://`, and invalid URLs return `SaveDeviceUrlResult.Invalid` without changing the stored value. Refresh intervals are clamped to the source-derived `5..3600` second range. Android intentionally defaults notifications to disabled, minimum alert severity to Warning, recovery/unreachable alerts to enabled, and theme mode to system.
+The settings repository normalizes device URLs before storage. Blank input clears the configured device, bare hosts gain `http://`, and invalid URLs return `SaveDeviceUrlResult.Invalid` without changing the stored value. When Settings saves a blank device URL, `SettingsViewModel` immediately stops monitoring through `AirQualityMonitoringServiceController` so foreground service and WorkManager state are reconciled through the same controller path used by explicit stop actions. Refresh intervals are clamped to the source-derived `5..3600` second range. Android intentionally defaults notifications to disabled, minimum alert severity to Warning, recovery/unreachable alerts to enabled, and theme mode to system.
 
 ## Dashboard State
 

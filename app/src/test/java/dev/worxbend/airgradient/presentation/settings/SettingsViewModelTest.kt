@@ -96,7 +96,12 @@ class SettingsViewModelTest {
     fun `saving invalid device url reports validation error without persisting`() =
         runTest(mainDispatcherRule.dispatcher) {
             val settingsRepository = FakeSettingsRepository()
-            val viewModel = viewModel(settingsRepository = settingsRepository)
+            val controller = FakeMonitoringServiceController()
+            val viewModel =
+                viewModel(
+                    settingsRepository = settingsRepository,
+                    monitoringServiceController = controller,
+                )
             runCurrent()
 
             viewModel.onDeviceUrlChanged("ftp://airgradient.local")
@@ -105,6 +110,33 @@ class SettingsViewModelTest {
 
             assertEquals(null, settingsRepository.settingsState.value.serverUrl)
             assertEquals(DeviceUrlSaveState.Invalid, viewModel.uiState.value.saveState)
+            assertEquals(emptyList<String>(), controller.actions)
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
+    fun `clearing device url stops monitoring immediately`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val settingsRepository =
+                FakeSettingsRepository(
+                    AppSettings.default.copy(serverUrl = "http://192.168.1.201"),
+                )
+            val controller = FakeMonitoringServiceController()
+            val viewModel =
+                viewModel(
+                    settingsRepository = settingsRepository,
+                    monitoringServiceController = controller,
+                )
+            runCurrent()
+
+            viewModel.onDeviceUrlChanged("")
+            viewModel.saveDeviceUrl()
+            runCurrent()
+
+            assertEquals(null, settingsRepository.settingsState.value.serverUrl)
+            assertEquals(DeviceUrlSaveState.Saved(null), viewModel.uiState.value.saveState)
+            assertEquals(MonitoringActionState.Stopped, viewModel.uiState.value.monitoringActionState)
+            assertEquals(listOf("stop"), controller.actions)
             viewModel.viewModelScope.cancel()
         }
 

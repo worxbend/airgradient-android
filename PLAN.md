@@ -1503,6 +1503,34 @@ Validation passed:
 ./gradlew clean build
 ```
 
+### Iteration 29 — Device URL Clearing Monitoring Reconciliation
+
+Implemented a focused settings/runtime reconciliation slice:
+
+```text
+- saving an empty device URL from Settings now immediately stops monitoring through MonitoringServiceController
+- foreground monitoring is stopped and periodic WorkManager monitoring is cancelled by the existing controller path
+- invalid device URL saves still report validation errors without mutating the stored URL or stopping monitoring
+- SettingsViewModel state now reflects monitoring stopped after the configured device is cleared
+- unit tests cover both immediate stop-on-clear and no-stop-on-invalid-save behavior
+```
+
+Behavior notes:
+
+```text
+- The foreground service and WorkManager runner still retain their defensive missing-device-url reconciliation paths.
+- This slice makes user-initiated device removal immediate from the settings surface instead of waiting for the next service or worker check.
+```
+
+Validation passed:
+
+```bash
+./gradlew :app:testDebugUnitTest --tests dev.worxbend.airgradient.presentation.settings.SettingsViewModelTest
+./gradlew test ktlintCheck detekt lint
+./gradlew clean build
+./gradlew assembleDebugAndroidTest
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
