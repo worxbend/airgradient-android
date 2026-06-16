@@ -13,15 +13,24 @@ class PersistentStatusNotificationUpdater(
     context: Context,
     private val notificationFactory: AirQualityMonitoringNotificationFactory =
         AirQualityMonitoringNotificationFactory(context),
+    private val textFormatter: MonitoringStatusTextFormatter = MonitoringStatusTextFormatter(),
 ) {
     private val appContext = context.applicationContext
     private val notificationManager = NotificationManagerCompat.from(appContext)
+    private var lastTitle: String? = null
+    private var lastBody: String? = null
 
     fun create(status: MonitoringStatus) = notificationFactory.create(status)
 
     @SuppressLint("MissingPermission")
     fun update(status: MonitoringStatus) {
         if (!hasNotificationPermission()) return
+
+        val title = textFormatter.title(status)
+        val body = textFormatter.body(status)
+        if (title == lastTitle && body == lastBody) return
+        lastTitle = title
+        lastBody = body
 
         notificationManager.notify(
             AirQualityMonitoringNotificationFactory.NOTIFICATION_ID,
@@ -30,6 +39,8 @@ class PersistentStatusNotificationUpdater(
     }
 
     fun cancel() {
+        lastTitle = null
+        lastBody = null
         notificationManager.cancel(AirQualityMonitoringNotificationFactory.NOTIFICATION_ID)
     }
 

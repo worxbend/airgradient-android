@@ -155,7 +155,6 @@ class AirQualityMonitoringService : Service() {
         appSettings: AppSettings,
         monitoringSettings: MonitoringSettings,
     ) {
-        updateActiveStatus(monitoringSettings)
         statusSnapshot = statusSnapshot.after(loopRunner.runOneTick(appSettings))
         updateActiveStatus(monitoringSettings)
     }

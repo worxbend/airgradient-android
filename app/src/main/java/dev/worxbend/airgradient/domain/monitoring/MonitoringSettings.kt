@@ -15,7 +15,7 @@ data class MonitoringSettings(
         get() = Duration.ofMinutes(periodicBackgroundIntervalMinutes.toLong())
 
     companion object {
-        const val DEFAULT_FOREGROUND_POLLING_INTERVAL_SECONDS: Int = 30
+        const val DEFAULT_FOREGROUND_POLLING_INTERVAL_SECONDS: Int = 300
         const val DEFAULT_PERIODIC_BACKGROUND_INTERVAL_MINUTES: Int = 15
         const val MIN_FOREGROUND_POLLING_INTERVAL_SECONDS: Int = 30
         const val MIN_PERIODIC_BACKGROUND_INTERVAL_MINUTES: Int = 15

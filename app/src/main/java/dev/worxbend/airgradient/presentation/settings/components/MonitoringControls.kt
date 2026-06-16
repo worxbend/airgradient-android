@@ -43,7 +43,8 @@ fun MonitoringControls(
         Text(
             text =
                 "Always-on mode keeps a persistent notification visible and checks your device " +
-                    "on the selected interval. This may increase battery use.",
+                    "on the selected interval. 5 minutes is recommended. 30 seconds checks " +
+                    "frequently and may noticeably increase battery usage.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -251,7 +252,7 @@ private fun MonitoringPolicyValidationError.toMonitoringErrorMessage(): String =
 
 private fun Int.toSecondsIntervalLabel(): String =
     if (this < SECONDS_PER_MINUTE) {
-        "${this}s"
+        "${this}s (realtime)"
     } else {
         "${this / SECONDS_PER_MINUTE}m"
     }
@@ -265,5 +266,5 @@ private fun Int.toMinutesIntervalLabel(): String =
 
 private const val SECONDS_PER_MINUTE = 60
 private const val MINUTES_PER_HOUR = 60
-private val FOREGROUND_MONITORING_INTERVAL_OPTIONS = listOf(30, 60, 120, 300)
+private val FOREGROUND_MONITORING_INTERVAL_OPTIONS = listOf(300, 120, 60, 30)
 private val PERIODIC_MONITORING_INTERVAL_OPTIONS = listOf(15, 30, 60)

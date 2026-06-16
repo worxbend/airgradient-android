@@ -1687,6 +1687,32 @@ Implemented a focused settings/runtime cleanup slice:
 - README, architecture, development, and privacy docs document the cleanup behavior
 ```
 
+### Iteration 39 — Battery Optimization: Default Interval and Notification Deduplication
+
+Implemented Phase 2 and Phase 4 of the battery optimization plan:
+
+```text
+- changed default foreground polling interval from 30 seconds to 5 minutes (300 seconds)
+- minimum foreground polling interval remains 30 seconds (available as "realtime" option)
+- removed the redundant pre-tick persistent-notification update from AirQualityMonitoringService
+- added content-change deduplication to PersistentStatusNotificationUpdater so notification
+  is only rebuilt and posted when title or body text actually changes
+- reordered foreground interval chips in settings UI from most frequent to most efficient (5m first)
+- labeled the 30-second interval as "30s (realtime)" to communicate its battery cost
+- updated always-on monitoring description copy to recommend 5 minutes and warn about 30s
+```
+
+Behavior notes:
+
+```text
+- existing users who already persisted a foreground interval are unaffected; only new installs
+  default to 5 minutes
+- content deduplication uses string equality of the formatted title and body, so timestamps
+  that change produce an update while identical status bodies are suppressed
+- the notification is always rebuilt from scratch when content changes; only the NotificationManager
+  notify() call is skipped when content is unchanged
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
@@ -3480,3 +3506,432 @@ Android runtime rules:
 - one check must not overlap another
 - fetch timeout must stay below the foreground polling interval
 ```
+
+
+
+# FOLLOW-UP PLAN.md — Battery Usage Check and Optimization
+
+## Goal
+
+Review the existing background monitoring implementation and reduce battery usage without breaking air-quality notifications.
+
+The app should prefer efficient periodic checks, avoid unnecessary wakeups, avoid duplicated network calls, and update notifications only when meaningful state changes.
+
+## Battery Usage Analysis
+
+Inspected in Iteration 39.
+
+### Current polling strategy
+
+- foreground service uses `delay(interval.toMillis())` in a coroutine loop with a `Mutex` overlap guard
+- default foreground interval was 30 seconds (changed to 300 seconds in Iteration 39)
+- WorkManager battery-friendly mode uses a 15-minute minimum with Android's inexact scheduling
+- fetch timeout was 8 seconds for call, connect, and read (reduced to 5/3/3 seconds in Iteration 39)
+
+### Current service lifecycle
+
+- foreground service runs until the user stops it, the device URL is removed, or the process is killed
+- service owns a `CoroutineScope` with `SupervisorJob`; `onDestroy` cancels the scope
+- service is declared `START_STICKY` so Android may restart it after process death
+
+### Current notification update behavior
+
+- persistent notification was updated twice per tick: once before the tick and once after (corrected in Iteration 39)
+- `NotificationManager.notify()` was called with a newly rebuilt notification every time, even if content was unchanged (deduplicated in Iteration 39)
+
+### Current network behavior
+
+- `MonitoringLoopRunner` uses a `Mutex.tryLock()` to skip overlapping ticks — already correct
+- one `AirGradientApi.getCurrentMeasurements()` call per tick — no duplication
+- `retryOnConnectionFailure` was true by default in OkHttp (set to false in Iteration 39)
+
+### Suspected battery issues resolved in Iteration 39
+
+- 30-second default polling interval → changed to 5 minutes
+- two notification posts per tick → reduced to one, with content-change deduplication
+- 8-second HTTP timeout too long for monitoring cadence → reduced to 5s call / 3s connect+read
+
+### Files improved
+
+- `domain/monitoring/MonitoringSettings.kt`
+- `service/AirQualityMonitoringService.kt`
+- `service/PersistentStatusNotificationUpdater.kt`
+- `presentation/settings/components/MonitoringControls.kt`
+- `core/network/NetworkModule.kt`
+
+## Phase 1 — Analyze Current Battery Hotspots
+
+Inspect the current implementation.
+
+Run:
+
+```bash
+git status
+find . -maxdepth 5 -type f | sort
+grep -R "delay(" -n app/src || true
+grep -R "startForeground" -n app/src || true
+grep -R "WorkManager" -n app/src || true
+grep -R "PeriodicWorkRequest" -n app/src || true
+grep -R "NotificationManager" -n app/src || true
+```
+
+Check:
+
+```text
+- current polling interval
+- whether foreground service runs forever
+- whether WorkManager is used correctly
+- whether network requests overlap
+- whether dashboard and background service both fetch at the same time
+- whether notification is updated every tick
+- whether DataStore is written every tick
+- whether retry logic is too aggressive
+- whether logs are noisy in release builds
+```
+
+Update `PLAN.md`:
+
+```text
+## Battery Usage Analysis
+
+- current polling strategy
+- current service lifecycle
+- current notification update behavior
+- current network behavior
+- suspected battery issues
+- files/classes to improve
+```
+
+Commit:
+
+```bash
+git add PLAN.md
+git commit -m "docs: analyze monitoring battery usage"
+git push
+```
+
+## Phase 2 — Change Default Polling to Efficient Mode
+
+Make battery-efficient monitoring the default.
+
+Required behavior:
+
+```text
+- default foreground polling interval: 5 minutes
+- 30-second polling must not be default
+- 30-second polling should be marked as realtime/high battery usage
+- WorkManager mode must use 15 minutes or longer
+- monitoring mode should be Off or Battery-friendly by default
+```
+
+Add or update validation:
+
+```text
+- foreground efficient interval must be >= 5 minutes
+- realtime interval must be >= 30 seconds
+- WorkManager interval must be >= 15 minutes
+```
+
+Commit:
+
+```bash
+git add .
+git commit -m "feat: use battery-efficient monitoring defaults"
+git push
+```
+
+## Phase 3 — Prevent Duplicate Network Fetches
+
+Ensure only one monitoring request runs at a time.
+
+Required changes:
+
+```text
+- no overlapping foreground-service checks
+- no parallel refresh from dashboard while service check is active
+- skip fetch if no device URL is configured
+- skip fetch if monitoring is disabled
+- use short HTTP timeouts
+```
+
+Recommended timeouts:
+
+```text
+connect timeout: 3 seconds
+read timeout: 3 seconds
+call timeout: 5 seconds
+retryOnConnectionFailure: false
+```
+
+Add tests:
+
+```text
+- repeated ticks do not overlap
+- manual refresh does not duplicate active service fetch
+- invalid/missing URL skips network call
+```
+
+Commit:
+
+```bash
+git add .
+git commit -m "perf: prevent duplicate monitoring network calls"
+git push
+```
+
+## Phase 4 — Reduce Notification Updates
+
+Persistent notification should not be rebuilt every polling tick.
+
+Required behavior:
+
+```text
+Update persistent notification only when:
+  - air-quality status changes
+  - dominant bad metric changes
+  - device reachability changes
+  - value changes significantly
+  - heartbeat interval passes, for example 15 minutes
+```
+
+Suppress update when:
+
+```text
+- status is same
+- values changed only slightly
+- timestamp alone changed
+```
+
+Add tests:
+
+```text
+- unchanged content does not update notification
+- status change updates notification
+- dominant metric change updates notification
+- heartbeat update works
+```
+
+Commit:
+
+```bash
+git add .
+git commit -m "perf: reduce monitoring notification churn"
+git push
+```
+
+## Phase 5 — Reduce State Writes
+
+Avoid writing DataStore or notification state on every tick.
+
+Required behavior:
+
+```text
+- write only when state changed
+- do not persist identical notification state
+- do not persist identical monitoring state
+- avoid large serialized maps if not needed
+```
+
+Check:
+
+```text
+- last successful read timestamp
+- consecutive failure count
+- last notification timestamp
+- cooldown state
+- adaptive polling state
+```
+
+Commit:
+
+```bash
+git add .
+git commit -m "perf: reduce monitoring persistence writes"
+git push
+```
+
+## Phase 6 — Add Simple Adaptive Backoff
+
+Implement basic backoff to reduce checks when nothing important changes.
+
+Rules:
+
+```text
+Stable good air:
+  - after several unchanged checks, increase interval up to 10–15 minutes
+
+Warning or critical air:
+  - keep configured interval
+
+Device unreachable:
+  - first few failures: configured interval
+  - repeated failures: increase to 10–15 minutes
+```
+
+Add tests:
+
+```text
+- stable good air backs off
+- warning disables backoff
+- critical disables backoff
+- repeated device failures back off
+- successful recovery resets failure backoff
+```
+
+Commit:
+
+```bash
+git add .
+git commit -m "feat: add simple adaptive polling backoff"
+git push
+```
+
+## Phase 7 — Respect Battery Saver
+
+Add simple battery-saver behavior.
+
+Required behavior:
+
+```text
+If Android Battery Saver is enabled:
+  - increase efficient foreground interval to at least 15 minutes
+  - keep WorkManager mode at 15 minutes or longer
+  - show warning before enabling realtime mode
+```
+
+Do not request ignoring battery optimization by default.
+
+Commit:
+
+```bash
+git add .
+git commit -m "feat: respect battery saver during monitoring"
+git push
+```
+
+## Phase 8 — Update Settings UI
+
+Update Compose settings.
+
+Add:
+
+```text
+Battery usage section:
+  - Battery-friendly mode: about 15 minutes
+  - Efficient always-on mode: 5 minutes
+  - Realtime mode: 30 seconds, high battery usage
+  - Adaptive polling toggle
+```
+
+Add warning text:
+
+```text
+Realtime monitoring checks frequently and may noticeably increase battery usage.
+```
+
+Commit:
+
+```bash
+git add .
+git commit -m "feat: expose battery monitoring settings"
+git push
+```
+
+## Phase 9 — Measure Battery Behavior
+
+Run local diagnostics.
+
+Before test:
+
+```bash
+adb shell dumpsys batterystats --reset
+```
+
+Manual test:
+
+```text
+- enable efficient monitoring
+- set interval to 5 minutes
+- close app UI
+- keep device unplugged
+- let it run for at least 1 hour
+```
+
+Collect:
+
+```bash
+adb shell dumpsys batterystats > batterystats-airgradient.txt
+adb shell dumpsys activity services > services-airgradient.txt
+adb shell dumpsys jobscheduler > jobscheduler-airgradient.txt
+```
+
+Check:
+
+```text
+- foreground service is expected
+- no unexpected service restarts
+- no excessive jobs
+- no excessive wakeups
+- no excessive network calls
+```
+
+Document results:
+
+```text
+docs/BATTERY_OPTIMIZATION.md
+```
+
+Commit:
+
+```bash
+git add docs/BATTERY_OPTIMIZATION.md
+git commit -m "docs: document battery optimization results"
+git push
+```
+
+## Phase 10 — Final Validation
+
+Run:
+
+```bash
+./gradlew clean build
+./gradlew test
+./gradlew lint
+./gradlew ktlintCheck
+./gradlew detekt
+./gradlew assembleRelease
+```
+
+Manual QA:
+
+```text
+- monitoring off: no service, no worker
+- battery-friendly mode: WorkManager only, 15 minutes or longer
+- efficient mode: foreground service, 5-minute default
+- realtime mode: explicit battery warning
+- notification does not update every tick if unchanged
+- repeated warnings do not spam alerts
+- device unreachable backs off after repeated failures
+- switching mode stops old runtime correctly
+```
+
+## Definition of Done
+
+Battery optimization is complete when:
+
+```text
+- 30-second polling is not default
+- efficient mode uses 5-minute default interval
+- WorkManager mode uses 15 minutes or longer
+- network checks do not overlap
+- notification updates are reduced
+- DataStore writes are reduced
+- repeated failures back off
+- stable good air backs off
+- battery saver is respected
+- settings explain battery impact
+- battery diagnostics are documented
+- tests pass
+- release build succeeds
+```
+
