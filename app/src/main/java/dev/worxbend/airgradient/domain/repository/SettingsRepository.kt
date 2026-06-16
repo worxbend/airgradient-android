@@ -2,6 +2,7 @@ package dev.worxbend.airgradient.domain.repository
 
 import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
+import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 import kotlinx.coroutines.flow.Flow
 
 interface SettingsRepository {
@@ -12,6 +13,12 @@ interface SettingsRepository {
     suspend fun saveRefreshIntervalSeconds(seconds: Int)
 
     suspend fun saveNotificationsEnabled(enabled: Boolean)
+
+    suspend fun saveMinimumNotificationSeverity(severity: NotificationSeverity)
+
+    suspend fun saveNotifyOnRecovery(enabled: Boolean)
+
+    suspend fun saveNotifyOnDeviceUnreachable(enabled: Boolean)
 
     suspend fun saveThemeMode(themeMode: AppThemeMode)
 }

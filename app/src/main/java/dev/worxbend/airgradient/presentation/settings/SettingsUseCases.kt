@@ -4,7 +4,10 @@ import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveDeviceUrlUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveForegroundPollingIntervalUseCase
+import dev.worxbend.airgradient.domain.usecase.SaveMinimumNotificationSeverityUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveNotificationsEnabledUseCase
+import dev.worxbend.airgradient.domain.usecase.SaveNotifyOnDeviceUnreachableUseCase
+import dev.worxbend.airgradient.domain.usecase.SaveNotifyOnRecoveryUseCase
 import dev.worxbend.airgradient.domain.usecase.SavePeriodicBackgroundIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveRefreshIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveThemeModeUseCase
@@ -18,6 +21,9 @@ data class SettingsUseCases(
     val saveForegroundPollingInterval: SaveForegroundPollingIntervalUseCase,
     val savePeriodicBackgroundInterval: SavePeriodicBackgroundIntervalUseCase,
     val saveNotificationsEnabled: SaveNotificationsEnabledUseCase,
+    val saveMinimumNotificationSeverity: SaveMinimumNotificationSeverityUseCase,
+    val saveNotifyOnRecovery: SaveNotifyOnRecoveryUseCase,
+    val saveNotifyOnDeviceUnreachable: SaveNotifyOnDeviceUnreachableUseCase,
     val saveThemeMode: SaveThemeModeUseCase,
     val testDeviceConnection: TestDeviceConnectionUseCase,
 )

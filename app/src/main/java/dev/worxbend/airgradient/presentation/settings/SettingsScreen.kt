@@ -1,8 +1,11 @@
 package dev.worxbend.airgradient.presentation.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -14,6 +17,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -30,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.worxbend.airgradient.domain.model.AppThemeMode
+import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 import dev.worxbend.airgradient.presentation.settings.components.DeviceUrlInput
 import dev.worxbend.airgradient.presentation.settings.components.DeviceUrlInputActions
 import dev.worxbend.airgradient.presentation.settings.components.MonitoringControlActions
@@ -87,6 +92,9 @@ data class SettingsScreenActions(
     val onTestConnection: () -> Unit,
     val onRefreshIntervalSelected: (Int) -> Unit,
     val onNotificationsEnabledChanged: (Boolean) -> Unit,
+    val onMinimumNotificationSeveritySelected: (NotificationSeverity) -> Unit,
+    val onNotifyOnRecoveryChanged: (Boolean) -> Unit,
+    val onNotifyOnDeviceUnreachableChanged: (Boolean) -> Unit,
     val onThemeModeSelected: (AppThemeMode) -> Unit,
     val onForegroundPollingIntervalSelected: (Int) -> Unit,
     val onPeriodicBackgroundIntervalSelected: (Int) -> Unit,
@@ -133,9 +141,14 @@ private fun SettingsContent(
         item {
             SettingsSection(title = "Notifications") {
                 NotificationsRow(
-                    enabled = state.notificationsEnabled,
-                    permissionDenied = state.notificationPermissionDenied,
-                    onEnabledChanged = actions.onNotificationsEnabledChanged,
+                    state = state,
+                    actions =
+                        NotificationPreferenceActions(
+                            onEnabledChanged = actions.onNotificationsEnabledChanged,
+                            onMinimumSeveritySelected = actions.onMinimumNotificationSeveritySelected,
+                            onNotifyOnRecoveryChanged = actions.onNotifyOnRecoveryChanged,
+                            onNotifyOnDeviceUnreachableChanged = actions.onNotifyOnDeviceUnreachableChanged,
+                        ),
                 )
             }
         }
@@ -202,13 +215,78 @@ private fun SettingsSection(
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun NotificationsRow(
-    enabled: Boolean,
-    permissionDenied: Boolean,
-    onEnabledChanged: (Boolean) -> Unit,
+    state: SettingsUiState,
+    actions: NotificationPreferenceActions,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        AlertSwitchRow(
+            title = "Air quality alerts",
+            description =
+                if (state.notificationPermissionDenied) {
+                    "Android notification permission was denied. Alerts remain off."
+                } else {
+                    "Notify when readings stay degraded. Disabled by default."
+                },
+            checked = state.notificationsEnabled,
+            isError = state.notificationPermissionDenied,
+            onCheckedChange = actions.onEnabledChanged,
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = "Minimum alert severity",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                NotificationSeverity.entries.forEach { severity ->
+                    FilterChip(
+                        selected = state.minimumNotificationSeverity == severity,
+                        onClick = { actions.onMinimumSeveritySelected(severity) },
+                        label = { Text(text = severity.toDisplayLabel()) },
+                    )
+                }
+            }
+        }
+        AlertSwitchRow(
+            title = "Recovery alerts",
+            description = "Notify after air quality returns below alert thresholds.",
+            checked = state.notifyOnRecovery,
+            onCheckedChange = actions.onNotifyOnRecoveryChanged,
+        )
+        AlertSwitchRow(
+            title = "Device unreachable alerts",
+            description = "Notify after repeated failed local-network checks.",
+            checked = state.notifyOnDeviceUnreachable,
+            onCheckedChange = actions.onNotifyOnDeviceUnreachableChanged,
+        )
+    }
+}
+
+private data class NotificationPreferenceActions(
+    val onEnabledChanged: (Boolean) -> Unit,
+    val onMinimumSeveritySelected: (NotificationSeverity) -> Unit,
+    val onNotifyOnRecoveryChanged: (Boolean) -> Unit,
+    val onNotifyOnDeviceUnreachableChanged: (Boolean) -> Unit,
+)
+
+@Composable
+private fun AlertSwitchRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    isError: Boolean = false,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable { onCheckedChange(!checked) },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -217,20 +295,15 @@ private fun NotificationsRow(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = "Air quality alerts",
+                text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
             )
             Text(
-                text =
-                    if (permissionDenied) {
-                        "Android notification permission was denied. Alerts remain off."
-                    } else {
-                        "Notify when readings stay degraded. Disabled by default."
-                    },
+                text = description,
                 style = MaterialTheme.typography.bodyMedium,
                 color =
-                    if (permissionDenied) {
+                    if (isError) {
                         MaterialTheme.colorScheme.error
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
@@ -238,11 +311,17 @@ private fun NotificationsRow(
             )
         }
         Switch(
-            checked = enabled,
-            onCheckedChange = onEnabledChanged,
+            checked = checked,
+            onCheckedChange = onCheckedChange,
         )
     }
 }
+
+private fun NotificationSeverity.toDisplayLabel(): String =
+    when (this) {
+        NotificationSeverity.Warning -> "Warning"
+        NotificationSeverity.Critical -> "Critical"
+    }
 
 @Composable
 private fun AboutSection() {

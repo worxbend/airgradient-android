@@ -9,6 +9,7 @@ import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
 import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
+import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
 import dev.worxbend.airgradient.domain.repository.AirGradientRepository
 import dev.worxbend.airgradient.domain.repository.MonitoringSettingsRepository
@@ -21,7 +22,10 @@ import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveDeviceUrlUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveForegroundPollingIntervalUseCase
+import dev.worxbend.airgradient.domain.usecase.SaveMinimumNotificationSeverityUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveNotificationsEnabledUseCase
+import dev.worxbend.airgradient.domain.usecase.SaveNotifyOnDeviceUnreachableUseCase
+import dev.worxbend.airgradient.domain.usecase.SaveNotifyOnRecoveryUseCase
 import dev.worxbend.airgradient.domain.usecase.SavePeriodicBackgroundIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveRefreshIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveThemeModeUseCase
@@ -156,6 +160,28 @@ class SettingsViewModelTest {
             assertEquals(5, persisted.refreshIntervalSeconds)
             assertTrue(persisted.notificationsEnabled)
             assertEquals(AppThemeMode.LIGHT, persisted.themeMode)
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
+    fun `notification policy preference changes persist immediately`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val settingsRepository = FakeSettingsRepository()
+            val viewModel = viewModel(settingsRepository = settingsRepository)
+            runCurrent()
+
+            viewModel.onMinimumNotificationSeveritySelected(NotificationSeverity.Critical)
+            viewModel.onNotifyOnRecoveryChanged(false)
+            viewModel.onNotifyOnDeviceUnreachableChanged(false)
+            runCurrent()
+
+            val persisted = settingsRepository.settingsState.value
+            assertEquals(NotificationSeverity.Critical, persisted.minimumNotificationSeverity)
+            assertEquals(false, persisted.notifyOnRecovery)
+            assertEquals(false, persisted.notifyOnDeviceUnreachable)
+            assertEquals(NotificationSeverity.Critical, viewModel.uiState.value.minimumNotificationSeverity)
+            assertEquals(false, viewModel.uiState.value.notifyOnRecovery)
+            assertEquals(false, viewModel.uiState.value.notifyOnDeviceUnreachable)
             viewModel.viewModelScope.cancel()
         }
 
@@ -299,6 +325,9 @@ class SettingsViewModelTest {
                     savePeriodicBackgroundInterval =
                         SavePeriodicBackgroundIntervalUseCase(monitoringSettingsRepository),
                     saveNotificationsEnabled = SaveNotificationsEnabledUseCase(settingsRepository),
+                    saveMinimumNotificationSeverity = SaveMinimumNotificationSeverityUseCase(settingsRepository),
+                    saveNotifyOnRecovery = SaveNotifyOnRecoveryUseCase(settingsRepository),
+                    saveNotifyOnDeviceUnreachable = SaveNotifyOnDeviceUnreachableUseCase(settingsRepository),
                     saveThemeMode = SaveThemeModeUseCase(settingsRepository),
                     testDeviceConnection = TestDeviceConnectionUseCase(getCurrentMeasurement),
                 ),
@@ -334,6 +363,18 @@ class SettingsViewModelTest {
 
         override suspend fun saveNotificationsEnabled(enabled: Boolean) {
             settingsState.value = settingsState.value.copy(notificationsEnabled = enabled)
+        }
+
+        override suspend fun saveMinimumNotificationSeverity(severity: NotificationSeverity) {
+            settingsState.value = settingsState.value.copy(minimumNotificationSeverity = severity)
+        }
+
+        override suspend fun saveNotifyOnRecovery(enabled: Boolean) {
+            settingsState.value = settingsState.value.copy(notifyOnRecovery = enabled)
+        }
+
+        override suspend fun saveNotifyOnDeviceUnreachable(enabled: Boolean) {
+            settingsState.value = settingsState.value.copy(notifyOnDeviceUnreachable = enabled)
         }
 
         override suspend fun saveThemeMode(themeMode: AppThemeMode) {

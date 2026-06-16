@@ -6,6 +6,7 @@ import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
 import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
+import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 
 data class SettingsUiState(
     val deviceUrlInput: String = "",
@@ -13,6 +14,9 @@ data class SettingsUiState(
     val refreshIntervalSeconds: Int = AppSettings.DEFAULT_REFRESH_INTERVAL_SECONDS,
     val notificationsEnabled: Boolean = false,
     val notificationPermissionDenied: Boolean = false,
+    val minimumNotificationSeverity: NotificationSeverity = NotificationSeverity.Warning,
+    val notifyOnRecovery: Boolean = true,
+    val notifyOnDeviceUnreachable: Boolean = true,
     val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
     val monitoringMode: MonitoringMode = MonitoringMode.Off,
     val foregroundPollingIntervalSeconds: Int =

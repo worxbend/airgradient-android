@@ -9,6 +9,7 @@ import dev.worxbend.airgradient.domain.monitoring.MonitoringTickResult
 import dev.worxbend.airgradient.domain.monitoring.MonitoringTickSkipReason
 import dev.worxbend.airgradient.domain.notifications.NotificationMessage
 import dev.worxbend.airgradient.domain.notifications.NotificationMessageDispatcher
+import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 import dev.worxbend.airgradient.domain.notifications.NotificationState
 import dev.worxbend.airgradient.domain.notifications.NotificationType
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
@@ -67,6 +68,26 @@ class MonitoringLoopRunnerTest {
         }
 
     @Test
+    fun `minimum notification severity suppresses monitoring warning alerts`() =
+        runTest {
+            val repository =
+                FakeAirGradientRepository(
+                    result = AirGradientFetchResult.Success(healthySnapshot.copy(co2 = 1_300.0)),
+                )
+            val dispatcher = RecordingNotificationMessageDispatcher()
+            val runner = runner(repository = repository, dispatcher = dispatcher)
+
+            runner.runOneTick(
+                settings(
+                    notificationsEnabled = true,
+                    minimumNotificationSeverity = NotificationSeverity.Critical,
+                ),
+            )
+
+            assertEquals(emptyList<NotificationMessage>(), dispatcher.messages)
+        }
+
+    @Test
     fun `notifications disabled clears persisted decision state`() =
         runTest {
             val stateRepository =
@@ -110,6 +131,29 @@ class MonitoringLoopRunnerTest {
         }
 
     @Test
+    fun `device unreachable preference suppresses failure notification`() =
+        runTest {
+            val repository =
+                FakeAirGradientRepository(
+                    result = AirGradientFetchResult.Failure(AirGradientError.Timeout),
+                )
+            val dispatcher = RecordingNotificationMessageDispatcher()
+            val runner = runner(repository = repository, dispatcher = dispatcher)
+            val settings =
+                settings(
+                    notificationsEnabled = true,
+                    notifyOnDeviceUnreachable = false,
+                )
+
+            runner.runOneTick(settings)
+            runner.runOneTick(settings)
+            val result = runner.runOneTick(settings) as MonitoringTickResult.Failure
+
+            assertEquals(3, result.consecutiveFailureCount)
+            assertEquals(emptyList<NotificationMessage>(), dispatcher.messages)
+        }
+
+    @Test
     fun `overlapping check is skipped`() =
         runTest {
             val repository =
@@ -144,12 +188,16 @@ class MonitoringLoopRunnerTest {
     private fun settings(
         serverUrl: String? = "http://192.168.1.201",
         notificationsEnabled: Boolean = true,
+        minimumNotificationSeverity: NotificationSeverity = NotificationSeverity.Warning,
+        notifyOnDeviceUnreachable: Boolean = true,
     ): AppSettings =
         AppSettings(
             serverUrl = serverUrl,
             refreshIntervalSeconds = 30,
             notificationsEnabled = notificationsEnabled,
             themeMode = AppThemeMode.SYSTEM,
+            minimumNotificationSeverity = minimumNotificationSeverity,
+            notifyOnDeviceUnreachable = notifyOnDeviceUnreachable,
         )
 
     private class FakeAirGradientRepository(

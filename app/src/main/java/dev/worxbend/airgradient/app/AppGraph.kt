@@ -22,7 +22,10 @@ import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.RefreshDashboardUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveDeviceUrlUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveForegroundPollingIntervalUseCase
+import dev.worxbend.airgradient.domain.usecase.SaveMinimumNotificationSeverityUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveNotificationsEnabledUseCase
+import dev.worxbend.airgradient.domain.usecase.SaveNotifyOnDeviceUnreachableUseCase
+import dev.worxbend.airgradient.domain.usecase.SaveNotifyOnRecoveryUseCase
 import dev.worxbend.airgradient.domain.usecase.SavePeriodicBackgroundIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveRefreshIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveThemeModeUseCase
@@ -116,6 +119,11 @@ class AppGraph(
                         savePeriodicBackgroundInterval =
                             SavePeriodicBackgroundIntervalUseCase(monitoringSettingsRepository),
                         saveNotificationsEnabled = SaveNotificationsEnabledUseCase(settingsRepository),
+                        saveMinimumNotificationSeverity =
+                            SaveMinimumNotificationSeverityUseCase(settingsRepository),
+                        saveNotifyOnRecovery = SaveNotifyOnRecoveryUseCase(settingsRepository),
+                        saveNotifyOnDeviceUnreachable =
+                            SaveNotifyOnDeviceUnreachableUseCase(settingsRepository),
                         saveThemeMode = SaveThemeModeUseCase(settingsRepository),
                         testDeviceConnection = TestDeviceConnectionUseCase(getCurrentMeasurement),
                     ),

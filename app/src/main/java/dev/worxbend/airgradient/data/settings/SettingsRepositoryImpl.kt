@@ -3,6 +3,7 @@ package dev.worxbend.airgradient.data.settings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
+import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 import dev.worxbend.airgradient.domain.repository.MonitoringSettingsRepository
 import dev.worxbend.airgradient.domain.repository.SaveDeviceUrlResult
 import dev.worxbend.airgradient.domain.repository.SettingsRepository
@@ -11,6 +12,7 @@ import dev.worxbend.airgradient.domain.sensors.DeviceUrlNormalizer
 import kotlinx.coroutines.flow.first
 import java.time.Duration
 
+@Suppress("TooManyFunctions")
 class SettingsRepositoryImpl(
     private val settingsDataSource: SettingsDataSource,
 ) : SettingsRepository,
@@ -34,6 +36,18 @@ class SettingsRepositoryImpl(
 
     override suspend fun saveNotificationsEnabled(enabled: Boolean) {
         settingsDataSource.saveNotificationsEnabled(enabled)
+    }
+
+    override suspend fun saveMinimumNotificationSeverity(severity: NotificationSeverity) {
+        settingsDataSource.saveMinimumNotificationSeverity(severity)
+    }
+
+    override suspend fun saveNotifyOnRecovery(enabled: Boolean) {
+        settingsDataSource.saveNotifyOnRecovery(enabled)
+    }
+
+    override suspend fun saveNotifyOnDeviceUnreachable(enabled: Boolean) {
+        settingsDataSource.saveNotifyOnDeviceUnreachable(enabled)
     }
 
     override suspend fun saveThemeMode(themeMode: AppThemeMode) {

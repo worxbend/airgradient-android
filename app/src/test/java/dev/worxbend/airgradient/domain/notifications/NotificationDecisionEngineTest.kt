@@ -53,6 +53,18 @@ class NotificationDecisionEngineTest {
     }
 
     @Test
+    fun `minimum critical severity suppresses warning alert`() {
+        val decision =
+            engine.evaluateCondition(
+                condition = warningCondition(),
+                state = NotificationState.default,
+                policy = NotificationPolicy.default.copy(minimumSeverity = NotificationSeverity.Critical),
+            )
+
+        assertSuppresses(NotificationSuppressionReason.BelowMinimumSeverity, decision)
+    }
+
+    @Test
     fun `warning to critical escalation sends alert during cooldown`() {
         val warningDecision =
             engine.evaluateCondition(
@@ -179,6 +191,27 @@ class NotificationDecisionEngineTest {
                 policy = NotificationPolicy.default,
             )
         assertSuppresses(NotificationSuppressionReason.NoActionableCondition, repeatedGood)
+    }
+
+    @Test
+    fun `recovery preference suppresses recovery alert and clears problem state`() {
+        val warningDecision =
+            engine.evaluateCondition(
+                condition = warningCondition(),
+                state = NotificationState.default,
+                policy = NotificationPolicy.default,
+            ) as NotificationDecision.Notify
+
+        val goodDecision =
+            engine.evaluateCondition(
+                condition = goodCondition(at = now.plusSeconds(90)),
+                state = warningDecision.nextState,
+                policy = NotificationPolicy.default.copy(notifyOnRecovery = false),
+            )
+
+        assertSuppresses(NotificationSuppressionReason.NoActionableCondition, goodDecision)
+        assertEquals(SensorStatus.GOOD, goodDecision.nextState.lastConditionStatus)
+        assertEquals(null, goodDecision.nextState.activeProblemStartedAt)
     }
 
     @Test

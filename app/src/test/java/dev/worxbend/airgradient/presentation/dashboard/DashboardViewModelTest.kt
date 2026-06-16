@@ -13,6 +13,7 @@ import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
 import dev.worxbend.airgradient.domain.notifications.NotificationDecisionEngine
 import dev.worxbend.airgradient.domain.notifications.NotificationMessage
 import dev.worxbend.airgradient.domain.notifications.NotificationMessageDispatcher
+import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 import dev.worxbend.airgradient.domain.notifications.NotificationState
 import dev.worxbend.airgradient.domain.notifications.NotificationType
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
@@ -197,6 +198,35 @@ class DashboardViewModelTest {
         }
 
     @Test
+    fun `minimum notification severity suppresses dashboard warning alerts`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val dispatcher = RecordingNotificationMessageDispatcher()
+            val repository =
+                FakeAirGradientRepository(
+                    results =
+                        ArrayDeque(
+                            listOf(
+                                AirGradientFetchResult.Success(firstSnapshot.copy(co2 = 1_300.0)),
+                            ),
+                        ),
+                )
+            val viewModel =
+                viewModel(
+                    settings =
+                        configuredSettings.copy(
+                            notificationsEnabled = true,
+                            minimumNotificationSeverity = NotificationSeverity.Critical,
+                        ),
+                    repository = repository,
+                    notificationMessageDispatcher = dispatcher,
+                )
+            runCurrent()
+
+            assertEquals(emptyList<NotificationMessage>(), dispatcher.messages)
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
     fun `configured dashboard includes monitoring summary`() =
         runTest(mainDispatcherRule.dispatcher) {
             val viewModel =
@@ -306,6 +336,18 @@ class DashboardViewModelTest {
 
         override suspend fun saveNotificationsEnabled(enabled: Boolean) {
             settingsState.value = settingsState.value.copy(notificationsEnabled = enabled)
+        }
+
+        override suspend fun saveMinimumNotificationSeverity(severity: NotificationSeverity) {
+            settingsState.value = settingsState.value.copy(minimumNotificationSeverity = severity)
+        }
+
+        override suspend fun saveNotifyOnRecovery(enabled: Boolean) {
+            settingsState.value = settingsState.value.copy(notifyOnRecovery = enabled)
+        }
+
+        override suspend fun saveNotifyOnDeviceUnreachable(enabled: Boolean) {
+            settingsState.value = settingsState.value.copy(notifyOnDeviceUnreachable = enabled)
         }
 
         override suspend fun saveThemeMode(themeMode: AppThemeMode) {

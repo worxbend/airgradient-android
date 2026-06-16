@@ -20,6 +20,8 @@ The app stores user settings in Jetpack DataStore:
 - normalized AirGradient device base URL
 - refresh interval
 - notifications enabled flag
+- minimum alert severity
+- recovery and device-unreachable alert preferences
 - theme mode
 ```
 

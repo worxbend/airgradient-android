@@ -5,6 +5,7 @@ import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
 import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
+import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 import dev.worxbend.airgradient.domain.repository.MonitoringSettingsRepository
 import dev.worxbend.airgradient.domain.repository.SaveDeviceUrlResult
 import dev.worxbend.airgradient.domain.repository.SettingsRepository
@@ -196,6 +197,18 @@ class AirQualityMonitoringServiceControllerTest {
 
         override suspend fun saveNotificationsEnabled(enabled: Boolean) {
             state.value = state.value.copy(notificationsEnabled = enabled)
+        }
+
+        override suspend fun saveMinimumNotificationSeverity(severity: NotificationSeverity) {
+            state.value = state.value.copy(minimumNotificationSeverity = severity)
+        }
+
+        override suspend fun saveNotifyOnRecovery(enabled: Boolean) {
+            state.value = state.value.copy(notifyOnRecovery = enabled)
+        }
+
+        override suspend fun saveNotifyOnDeviceUnreachable(enabled: Boolean) {
+            state.value = state.value.copy(notifyOnDeviceUnreachable = enabled)
         }
 
         override suspend fun saveThemeMode(themeMode: AppThemeMode) {

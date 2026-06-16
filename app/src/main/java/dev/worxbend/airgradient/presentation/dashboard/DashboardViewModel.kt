@@ -14,6 +14,7 @@ import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
 import dev.worxbend.airgradient.domain.notifications.AirQualityConditionFactory
 import dev.worxbend.airgradient.domain.notifications.NotificationDecision
 import dev.worxbend.airgradient.domain.notifications.NotificationPolicy
+import dev.worxbend.airgradient.domain.notifications.NotificationPolicyFactory
 import dev.worxbend.airgradient.domain.notifications.NotificationState
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
 import dev.worxbend.airgradient.domain.sensors.SensorMetricFactory
@@ -271,7 +272,7 @@ class DashboardViewModel(
         val decision =
             evaluate(
                 currentState,
-                NotificationPolicy.default.copy(notificationsEnabled = true),
+                NotificationPolicyFactory.fromSettings(settings),
             )
 
         notificationDependencies.notificationStateRepository.saveNotificationState(decision.nextState)

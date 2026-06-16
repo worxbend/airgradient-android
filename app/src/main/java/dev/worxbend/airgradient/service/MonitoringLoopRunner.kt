@@ -11,6 +11,7 @@ import dev.worxbend.airgradient.domain.notifications.NotificationDecision
 import dev.worxbend.airgradient.domain.notifications.NotificationDecisionEngine
 import dev.worxbend.airgradient.domain.notifications.NotificationMessageDispatcher
 import dev.worxbend.airgradient.domain.notifications.NotificationPolicy
+import dev.worxbend.airgradient.domain.notifications.NotificationPolicyFactory
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
 import dev.worxbend.airgradient.domain.repository.NoOpNotificationStateRepository
 import dev.worxbend.airgradient.domain.repository.NotificationStateRepository
@@ -69,7 +70,7 @@ class MonitoringLoopRunner(
                 notificationDecisionEngine.evaluateCondition(
                     condition = AirQualityConditionFactory.fromSnapshot(result.snapshot),
                     state = state,
-                    policy = NotificationPolicy.default.copy(notificationsEnabled = true),
+                    policy = NotificationPolicyFactory.fromSettings(settings),
                 )
             persistAndDispatch(decision)
         } else {
@@ -99,7 +100,7 @@ class MonitoringLoopRunner(
                 error = result.error,
                 now = checkedAt,
                 state = state,
-                policy = NotificationPolicy.default.copy(notificationsEnabled = true),
+                policy = NotificationPolicyFactory.fromSettings(settings),
             )
         persistAndDispatch(decision)
 

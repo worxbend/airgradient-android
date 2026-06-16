@@ -1,10 +1,15 @@
 package dev.worxbend.airgradient.domain.model
 
+import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
+
 data class AppSettings(
     val serverUrl: String?,
     val refreshIntervalSeconds: Int,
     val notificationsEnabled: Boolean,
     val themeMode: AppThemeMode,
+    val minimumNotificationSeverity: NotificationSeverity = NotificationSeverity.Warning,
+    val notifyOnRecovery: Boolean = true,
+    val notifyOnDeviceUnreachable: Boolean = true,
 ) {
     companion object {
         const val DEFAULT_REFRESH_INTERVAL_SECONDS: Int = 30
@@ -17,6 +22,9 @@ data class AppSettings(
                 refreshIntervalSeconds = DEFAULT_REFRESH_INTERVAL_SECONDS,
                 notificationsEnabled = false,
                 themeMode = AppThemeMode.SYSTEM,
+                minimumNotificationSeverity = NotificationSeverity.Warning,
+                notifyOnRecovery = true,
+                notifyOnDeviceUnreachable = true,
             )
 
         fun clampRefreshInterval(seconds: Int): Int =

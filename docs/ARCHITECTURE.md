@@ -40,9 +40,9 @@ The mapper accepts flexible JSON payloads rather than fixed DTO fields because A
 
 ## Settings Persistence
 
-Settings are represented by the pure domain `AppSettings` model and exposed through `SettingsRepository.settings` as a `Flow`. The DataStore implementation persists the normalized device base URL, refresh interval, notification toggle, and theme mode.
+Settings are represented by the pure domain `AppSettings` model and exposed through `SettingsRepository.settings` as a `Flow`. The DataStore implementation persists the normalized device base URL, refresh interval, notification toggle, minimum alert severity, recovery/unreachable alert preferences, and theme mode.
 
-The settings repository normalizes device URLs before storage. Blank input clears the configured device, bare hosts gain `http://`, and invalid URLs return `SaveDeviceUrlResult.Invalid` without changing the stored value. Refresh intervals are clamped to the source-derived `5..3600` second range. Android intentionally defaults notifications to disabled and theme mode to system.
+The settings repository normalizes device URLs before storage. Blank input clears the configured device, bare hosts gain `http://`, and invalid URLs return `SaveDeviceUrlResult.Invalid` without changing the stored value. Refresh intervals are clamped to the source-derived `5..3600` second range. Android intentionally defaults notifications to disabled, minimum alert severity to Warning, recovery/unreachable alerts to enabled, and theme mode to system.
 
 ## Dashboard State
 
@@ -55,6 +55,10 @@ Refreshes are guarded by a coroutine mutex so manual refresh and timer refresh c
 Notification decision rules live in pure Kotlin under `domain/notifications`. `NotificationDecisionEngine` evaluates
 current air-quality condition, fetch failures, stale data, cooldowns, severity escalation, persistent degraded readings,
 and recovery confirmation against a persisted `NotificationState`.
+
+`NotificationPolicyFactory` derives the runtime policy from `AppSettings`, so dashboard refreshes, the foreground
+service loop, and WorkManager checks all honor the same minimum severity, recovery-alert, and device-unreachable-alert
+preferences.
 
 `data/notifications/NotificationStateRepositoryImpl` stores notification decision state in a dedicated DataStore file so
 cooldown and recovery state survive process restart. `DashboardViewModel` now uses the same decision engine and state

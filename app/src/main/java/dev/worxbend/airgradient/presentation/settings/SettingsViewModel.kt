@@ -8,6 +8,7 @@ import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
 import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
+import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 import dev.worxbend.airgradient.domain.repository.SaveDeviceUrlResult
 import dev.worxbend.airgradient.domain.sensors.DeviceUrlNormalizationResult
 import dev.worxbend.airgradient.domain.sensors.DeviceUrlNormalizer
@@ -124,6 +125,27 @@ class SettingsViewModel(
         }
     }
 
+    fun onMinimumNotificationSeveritySelected(severity: NotificationSeverity) {
+        _uiState.update { state -> state.copy(minimumNotificationSeverity = severity) }
+        viewModelScope.launch(dispatchers.io) {
+            useCases.saveMinimumNotificationSeverity(severity)
+        }
+    }
+
+    fun onNotifyOnRecoveryChanged(enabled: Boolean) {
+        _uiState.update { state -> state.copy(notifyOnRecovery = enabled) }
+        viewModelScope.launch(dispatchers.io) {
+            useCases.saveNotifyOnRecovery(enabled)
+        }
+    }
+
+    fun onNotifyOnDeviceUnreachableChanged(enabled: Boolean) {
+        _uiState.update { state -> state.copy(notifyOnDeviceUnreachable = enabled) }
+        viewModelScope.launch(dispatchers.io) {
+            useCases.saveNotifyOnDeviceUnreachable(enabled)
+        }
+    }
+
     fun onNotificationPermissionDenied() {
         _uiState.update { state ->
             state.copy(
@@ -222,6 +244,9 @@ private fun SettingsUiState.applySettings(
             },
         refreshIntervalSeconds = settings.refreshIntervalSeconds,
         notificationsEnabled = settings.notificationsEnabled,
+        minimumNotificationSeverity = settings.minimumNotificationSeverity,
+        notifyOnRecovery = settings.notifyOnRecovery,
+        notifyOnDeviceUnreachable = settings.notifyOnDeviceUnreachable,
         notificationPermissionDenied =
             if (settings.notificationsEnabled) {
                 false

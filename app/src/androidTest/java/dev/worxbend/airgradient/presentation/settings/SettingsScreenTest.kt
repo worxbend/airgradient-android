@@ -10,6 +10,7 @@ import dev.worxbend.airgradient.domain.error.AirGradientError
 import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
+import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 import dev.worxbend.airgradient.presentation.theme.AirGradientTheme
 import org.junit.Rule
 import org.junit.Test
@@ -129,6 +130,46 @@ class SettingsScreenTest {
         composeRule
             .onNodeWithText("Android notification permission was denied. Alerts remain off.")
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun notificationPolicyControlsDispatchCallbacks() {
+        val selectedSeverity = AtomicReference<NotificationSeverity>()
+        val recoveryEnabled = AtomicReference<Boolean>()
+        val unreachableEnabled = AtomicReference<Boolean>()
+
+        composeRule.setContent {
+            AirGradientTheme(dynamicColor = false) {
+                SettingsScreen(
+                    state =
+                        SettingsUiState(
+                            minimumNotificationSeverity = NotificationSeverity.Warning,
+                            notifyOnRecovery = true,
+                            notifyOnDeviceUnreachable = true,
+                        ),
+                    onNavigateBack = {},
+                    actions =
+                        actions(
+                            onMinimumNotificationSeveritySelected = selectedSeverity::set,
+                            onNotifyOnRecoveryChanged = recoveryEnabled::set,
+                            onNotifyOnDeviceUnreachableChanged = unreachableEnabled::set,
+                        ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Notifications").performScrollTo()
+        composeRule.onNodeWithText("Critical").performClick()
+        composeRule.onNodeWithText("Recovery alerts").assertIsDisplayed()
+        composeRule.onNodeWithText("Device unreachable alerts").assertIsDisplayed()
+        composeRule.onNodeWithText("Notify after air quality returns below alert thresholds.").performClick()
+        composeRule.onNodeWithText("Notify after repeated failed local-network checks.").performClick()
+
+        composeRule.runOnIdle {
+            check(selectedSeverity.get() == NotificationSeverity.Critical)
+            check(recoveryEnabled.get() == false)
+            check(unreachableEnabled.get() == false)
+        }
     }
 
     @Test
@@ -255,6 +296,9 @@ class SettingsScreenTest {
         onTestConnection: () -> Unit = {},
         onRefreshIntervalSelected: (Int) -> Unit = {},
         onNotificationsEnabledChanged: (Boolean) -> Unit = {},
+        onMinimumNotificationSeveritySelected: (NotificationSeverity) -> Unit = {},
+        onNotifyOnRecoveryChanged: (Boolean) -> Unit = {},
+        onNotifyOnDeviceUnreachableChanged: (Boolean) -> Unit = {},
         onThemeModeSelected: (AppThemeMode) -> Unit = {},
         onForegroundPollingIntervalSelected: (Int) -> Unit = {},
         onPeriodicBackgroundIntervalSelected: (Int) -> Unit = {},
@@ -268,6 +312,9 @@ class SettingsScreenTest {
             onTestConnection = onTestConnection,
             onRefreshIntervalSelected = onRefreshIntervalSelected,
             onNotificationsEnabledChanged = onNotificationsEnabledChanged,
+            onMinimumNotificationSeveritySelected = onMinimumNotificationSeveritySelected,
+            onNotifyOnRecoveryChanged = onNotifyOnRecoveryChanged,
+            onNotifyOnDeviceUnreachableChanged = onNotifyOnDeviceUnreachableChanged,
             onThemeModeSelected = onThemeModeSelected,
             onForegroundPollingIntervalSelected = onForegroundPollingIntervalSelected,
             onPeriodicBackgroundIntervalSelected = onPeriodicBackgroundIntervalSelected,

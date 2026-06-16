@@ -11,6 +11,7 @@ import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
+import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -58,6 +59,24 @@ class SettingsDataSource(
         }
     }
 
+    suspend fun saveMinimumNotificationSeverity(severity: NotificationSeverity) {
+        dataStore.edit { preferences ->
+            preferences[MINIMUM_NOTIFICATION_SEVERITY] = severity.name
+        }
+    }
+
+    suspend fun saveNotifyOnRecovery(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[NOTIFY_ON_RECOVERY] = enabled
+        }
+    }
+
+    suspend fun saveNotifyOnDeviceUnreachable(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[NOTIFY_ON_DEVICE_UNREACHABLE] = enabled
+        }
+    }
+
     suspend fun saveThemeMode(themeMode: AppThemeMode) {
         dataStore.edit { preferences ->
             preferences[THEME_MODE] = themeMode.name
@@ -91,6 +110,9 @@ class SettingsDataSource(
                 ),
             notificationsEnabled = preferences[NOTIFICATIONS_ENABLED] ?: false,
             themeMode = preferences[THEME_MODE].toThemeMode(),
+            minimumNotificationSeverity = preferences[MINIMUM_NOTIFICATION_SEVERITY].toNotificationSeverity(),
+            notifyOnRecovery = preferences[NOTIFY_ON_RECOVERY] ?: true,
+            notifyOnDeviceUnreachable = preferences[NOTIFY_ON_DEVICE_UNREACHABLE] ?: true,
         )
 
     private fun mapMonitoringPreferences(preferences: Preferences): MonitoringSettings =
@@ -117,10 +139,20 @@ class SettingsDataSource(
             ?.let { storedValue -> MonitoringMode.entries.firstOrNull { it.name == storedValue } }
             ?: MonitoringMode.Off
 
+    private fun String?.toNotificationSeverity(): NotificationSeverity =
+        this
+            ?.let { storedValue -> NotificationSeverity.entries.firstOrNull { it.name == storedValue } }
+            ?: NotificationSeverity.Warning
+
     private companion object {
         val SERVER_URL: Preferences.Key<String> = stringPreferencesKey("server_url")
         val REFRESH_INTERVAL_SECONDS: Preferences.Key<Int> = intPreferencesKey("refresh_interval_seconds")
         val NOTIFICATIONS_ENABLED: Preferences.Key<Boolean> = booleanPreferencesKey("notifications_enabled")
+        val MINIMUM_NOTIFICATION_SEVERITY: Preferences.Key<String> =
+            stringPreferencesKey("minimum_notification_severity")
+        val NOTIFY_ON_RECOVERY: Preferences.Key<Boolean> = booleanPreferencesKey("notify_on_recovery")
+        val NOTIFY_ON_DEVICE_UNREACHABLE: Preferences.Key<Boolean> =
+            booleanPreferencesKey("notify_on_device_unreachable")
         val THEME_MODE: Preferences.Key<String> = stringPreferencesKey("theme_mode")
         val MONITORING_MODE: Preferences.Key<String> = stringPreferencesKey("monitoring_mode")
         val MONITORING_FOREGROUND_INTERVAL_SECONDS: Preferences.Key<Int> =

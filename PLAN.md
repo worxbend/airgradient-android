@@ -1422,6 +1422,26 @@ Behavior notes:
 - Last background check timestamps, minimum alert severity, recovery toggles, and device-unreachable toggles remain deferred.
 ```
 
+### Iteration 26 — Smart Alert Preference Controls
+
+Implemented user-configurable smart alert policy preferences:
+
+```text
+- AppSettings now persists minimum alert severity, recovery alert preference, and device-unreachable alert preference
+- settings UI exposes Warning/Critical minimum severity chips plus recovery and unreachable alert switches
+- dashboard refresh, foreground monitoring, and WorkManager monitoring all derive NotificationPolicy from AppSettings
+- warning alerts can be suppressed by a Critical-only policy without disabling critical alerts
+- device-unreachable and recovery notifications can be disabled independently while preserving decision state updates
+- unit and Compose tests cover persistence, ViewModel updates, policy behavior, dashboard suppression, monitoring-loop suppression, and visible settings controls
+- README, architecture, development, and privacy docs document the new smart-alert preferences
+```
+
+Validation passed:
+
+```bash
+./gradlew test ktlintCheck detekt lint
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

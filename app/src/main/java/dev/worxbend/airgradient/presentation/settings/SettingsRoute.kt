@@ -50,6 +50,9 @@ fun SettingsRoute(
                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
                 },
+                onMinimumNotificationSeveritySelected = viewModel::onMinimumNotificationSeveritySelected,
+                onNotifyOnRecoveryChanged = viewModel::onNotifyOnRecoveryChanged,
+                onNotifyOnDeviceUnreachableChanged = viewModel::onNotifyOnDeviceUnreachableChanged,
                 onThemeModeSelected = viewModel::onThemeModeSelected,
                 onForegroundPollingIntervalSelected = viewModel::onForegroundPollingIntervalSelected,
                 onPeriodicBackgroundIntervalSelected = viewModel::onPeriodicBackgroundIntervalSelected,

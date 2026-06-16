@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import app.cash.turbine.test
 import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
+import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 import dev.worxbend.airgradient.domain.repository.SaveDeviceUrlResult
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -144,11 +145,17 @@ class SettingsRepositoryImplTest {
     fun `notification and theme settings persist`() =
         runTest {
             repository.saveNotificationsEnabled(true)
+            repository.saveMinimumNotificationSeverity(NotificationSeverity.Critical)
+            repository.saveNotifyOnRecovery(false)
+            repository.saveNotifyOnDeviceUnreachable(false)
             repository.saveThemeMode(AppThemeMode.DARK)
 
             assertEquals(
                 AppSettings.default.copy(
                     notificationsEnabled = true,
+                    minimumNotificationSeverity = NotificationSeverity.Critical,
+                    notifyOnRecovery = false,
+                    notifyOnDeviceUnreachable = false,
                     themeMode = AppThemeMode.DARK,
                 ),
                 awaitItemAfterRecreatingRepository(),
