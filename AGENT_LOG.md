@@ -36,3 +36,9 @@
 2026-06-16T00:18:30Z iteration 7 validation passed commands="./gradlew test ktlintCheck detekt lint" and "./gradlew clean build"; note combined "./gradlew test ktlintCheck detekt lint clean build" hit Gradle task scheduling failure after checks passed because clean was queued after output-producing tasks
 2026-06-16T00:19:20Z iteration 7 committed checkpoint
 2026-06-16T00:19:20Z iteration 7 completed validation_status=0
+2026-06-16T00:05:07Z iteration 7 no changes to commit
+2026-06-16T00:05:07Z iteration 7 completed validation_status=0
+2026-06-16T00:05:07Z iteration 8 started remaining=13881s
+2026-06-16T00:16:53Z iteration 8 implemented Phase 7 settings UI and app wiring with manual AppGraph, Compose Navigation, route-backed dashboard/settings ViewModels, persisted settings form, URL save/test connection flows, theme application, and SettingsViewModel tests
+2026-06-16T00:16:53Z iteration 8 validation passed commands="./gradlew test" "./gradlew ktlintCheck" "./gradlew detekt" "./gradlew lint" "./gradlew clean build"
+2026-06-16T00:16:53Z iteration 8 committed checkpoint

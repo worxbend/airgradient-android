@@ -1055,6 +1055,41 @@ Validation passed:
 ./gradlew clean build
 ```
 
+### Iteration 8 — Phase 7 Settings UI And App Wiring
+
+Implemented the first production settings and navigation slice:
+
+```text
+- manual AppGraph wiring for shared repositories, use cases, and lifecycle-scoped ViewModel factories
+- MainActivity now hosts AppRoot instead of the unconfigured dashboard fallback
+- Compose Navigation added with dashboard and settings destinations
+- DashboardRoute collects DashboardViewModel StateFlow and opens settings from the app bar/empty/error actions
+- AppRoot observes persisted settings and applies system/light/dark theme changes immediately
+- SettingsViewModel added with immutable SettingsUiState and explicit URL preview, save, and connection-test states
+- settings screen added with device URL input, normalized endpoint preview, save action, test connection action, refresh interval selector, notification toggle, theme selector, and about section
+- small domain use cases added for refresh interval, notifications, theme mode, and test-device-connection workflows
+- SettingsViewModel tests cover loading persisted settings, URL normalization/save validation, connection test success/failure, and immediate persistence of refresh/notification/theme changes
+```
+
+Behavior notes:
+
+```text
+- Hilt is still deferred; the app uses a small manual graph because current dependency wiring remains simple and testable.
+- Test connection fetches the normalized /measures/current endpoint without persisting the URL.
+- Notifications remain a persisted foreground setting only; Android notification channels, runtime permission, alert policy, and optional background checks remain Phase 8/9 work.
+- Pull-to-refresh remains unimplemented; dashboard manual refresh is available through the app bar.
+```
+
+Validation passed:
+
+```bash
+./gradlew test
+./gradlew ktlintCheck
+./gradlew detekt
+./gradlew lint
+./gradlew clean build
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
