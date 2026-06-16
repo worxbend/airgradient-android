@@ -20,6 +20,7 @@ import dev.worxbend.airgradient.domain.repository.SaveDeviceUrlResult
 import dev.worxbend.airgradient.domain.repository.SettingsRepository
 import dev.worxbend.airgradient.domain.sensors.DeviceUrlNormalizationResult
 import dev.worxbend.airgradient.domain.sensors.DeviceUrlNormalizer
+import dev.worxbend.airgradient.domain.usecase.ClearMonitoringRuntimeStateUseCase
 import dev.worxbend.airgradient.domain.usecase.GetCurrentMeasurementUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringRuntimeStateUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringSettingsUseCase
@@ -125,10 +126,20 @@ class SettingsViewModelTest {
                 FakeSettingsRepository(
                     AppSettings.default.copy(serverUrl = "http://192.168.1.201"),
                 )
+            val runtimeRepository =
+                FakeMonitoringRuntimeStateRepository(
+                    MonitoringRuntimeState.default.copy(
+                        lastCheckedAt = Instant.parse("2026-06-16T12:00:00Z"),
+                        lastSuccessfulCheckAt = Instant.parse("2026-06-16T11:45:00Z"),
+                        lastSuccessfulMeasurementAt = Instant.parse("2026-06-16T11:44:58Z"),
+                        consecutiveFailureCount = 1,
+                    ),
+                )
             val controller = FakeMonitoringServiceController()
             val viewModel =
                 viewModel(
                     settingsRepository = settingsRepository,
+                    monitoringRuntimeStateRepository = runtimeRepository,
                     monitoringServiceController = controller,
                 )
             runCurrent()
@@ -140,6 +151,7 @@ class SettingsViewModelTest {
             assertEquals(null, settingsRepository.settingsState.value.serverUrl)
             assertEquals(DeviceUrlSaveState.Saved(null), viewModel.uiState.value.saveState)
             assertEquals(MonitoringActionState.Stopped, viewModel.uiState.value.monitoringActionState)
+            assertEquals(MonitoringRuntimeState.default, runtimeRepository.state.value)
             assertEquals(listOf("stop"), controller.actions)
             viewModel.viewModelScope.cancel()
         }
@@ -388,6 +400,8 @@ class SettingsViewModelTest {
                     observeMonitoringSettings = ObserveMonitoringSettingsUseCase(monitoringSettingsRepository),
                     observeMonitoringRuntimeState =
                         ObserveMonitoringRuntimeStateUseCase(monitoringRuntimeStateRepository),
+                    clearMonitoringRuntimeState =
+                        ClearMonitoringRuntimeStateUseCase(monitoringRuntimeStateRepository),
                     saveDeviceUrl = SaveDeviceUrlUseCase(settingsRepository),
                     saveRefreshInterval = SaveRefreshIntervalUseCase(settingsRepository),
                     saveForegroundPollingInterval =

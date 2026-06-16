@@ -74,6 +74,7 @@ class SettingsViewModel(
                     isDeviceUrlDirty = false
                     if (result.serverUrl == null) {
                         monitoringServiceController.stopMonitoring()
+                        useCases.clearMonitoringRuntimeState()
                     }
                     _uiState.update { state ->
                         state.copy(

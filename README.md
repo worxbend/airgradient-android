@@ -50,7 +50,7 @@ The persistent monitoring notification shows the latest completed check and last
 
 Battery-friendly monitoring is opt-in from Settings. It uses WorkManager with a connected-network constraint and supports 15 minute, 30 minute, and 1 hour intervals. Android schedules this work inexactly, so checks may run at or after the selected interval rather than in real time.
 
-Settings also shows monitoring diagnostics from the same runtime state as the dashboard: last completed background check, last successful background reading, last failed check, and consecutive failure count when available.
+Settings also shows monitoring diagnostics from the same runtime state as the dashboard: last completed background check, last successful background reading, last failed check, and consecutive failure count when available. Clearing the configured device URL stops monitoring and clears those runtime diagnostics so old device timestamps are not shown for an unconfigured app.
 
 ## Privacy
 

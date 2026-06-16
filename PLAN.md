@@ -1675,6 +1675,18 @@ Implemented Settings visibility for persisted monitoring runtime diagnostics:
 - README and architecture docs document the shared dashboard/settings runtime diagnostics path
 ```
 
+### Iteration 38 — Clear Monitoring Diagnostics On Device Removal
+
+Implemented a focused settings/runtime cleanup slice:
+
+```text
+- added ClearMonitoringRuntimeStateUseCase
+- clearing the configured device URL from Settings now stops monitoring and clears monitoring runtime diagnostics
+- old background-check timestamps are no longer shown after the app becomes unconfigured
+- SettingsViewModel tests cover runtime-state clearing during device removal
+- README, architecture, development, and privacy docs document the cleanup behavior
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

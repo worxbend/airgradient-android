@@ -49,6 +49,8 @@ The app also stores monitoring runtime metadata in a separate DataStore file:
 
 This runtime state lets the dashboard show when foreground-service or WorkManager monitoring last checked the device. It
 does not include raw sensor readings or historical sensor samples.
+When the configured device URL is cleared, monitoring runtime state is cleared as well so old local-device timestamps do
+not remain visible for an unconfigured app.
 
 These files stay on the device. Android cloud backup and device-transfer extraction rules exclude all AirGradient
 DataStore files:
