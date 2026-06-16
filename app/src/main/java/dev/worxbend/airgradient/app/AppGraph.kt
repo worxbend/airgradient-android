@@ -23,6 +23,7 @@ import dev.worxbend.airgradient.domain.usecase.RefreshDashboardUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveDeviceUrlUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveForegroundPollingIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveNotificationsEnabledUseCase
+import dev.worxbend.airgradient.domain.usecase.SavePeriodicBackgroundIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveRefreshIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveThemeModeUseCase
 import dev.worxbend.airgradient.domain.usecase.TestDeviceConnectionUseCase
@@ -36,6 +37,7 @@ import dev.worxbend.airgradient.service.AndroidMonitoringNotificationPermissionC
 import dev.worxbend.airgradient.service.AndroidMonitoringServiceGateway
 import dev.worxbend.airgradient.service.MonitoringLoopRunner
 import dev.worxbend.airgradient.service.PersistentStatusNotificationUpdater
+import dev.worxbend.airgradient.worker.AirQualityWorkerScheduler
 
 class AppGraph(
     context: Context,
@@ -56,12 +58,14 @@ class AppGraph(
         NotificationStateRepositoryImpl(appContext.airGradientNotificationStateDataStore)
     private val notificationDecisionEngine = NotificationDecisionEngine()
     private val notificationMessageDispatcher = AndroidNotificationMessageDispatcher(appContext)
+    val periodicMonitoringScheduler = AirQualityWorkerScheduler(appContext)
     val monitoringServiceController =
         AirQualityMonitoringServiceController(
             settingsRepository = settingsRepository,
             monitoringSettingsRepository = monitoringSettingsRepository,
             permissionChecker = AndroidMonitoringNotificationPermissionChecker(appContext),
             serviceGateway = AndroidMonitoringServiceGateway(appContext),
+            periodicScheduler = periodicMonitoringScheduler,
         )
 
     fun monitoringLoopRunner(): MonitoringLoopRunner =
@@ -109,6 +113,8 @@ class AppGraph(
                         saveRefreshInterval = SaveRefreshIntervalUseCase(settingsRepository),
                         saveForegroundPollingInterval =
                             SaveForegroundPollingIntervalUseCase(monitoringSettingsRepository),
+                        savePeriodicBackgroundInterval =
+                            SavePeriodicBackgroundIntervalUseCase(monitoringSettingsRepository),
                         saveNotificationsEnabled = SaveNotificationsEnabledUseCase(settingsRepository),
                         saveThemeMode = SaveThemeModeUseCase(settingsRepository),
                         testDeviceConnection = TestDeviceConnectionUseCase(getCurrentMeasurement),

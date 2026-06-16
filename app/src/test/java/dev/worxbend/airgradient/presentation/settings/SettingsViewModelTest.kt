@@ -22,6 +22,7 @@ import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveDeviceUrlUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveForegroundPollingIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveNotificationsEnabledUseCase
+import dev.worxbend.airgradient.domain.usecase.SavePeriodicBackgroundIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveRefreshIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveThemeModeUseCase
 import dev.worxbend.airgradient.domain.usecase.TestDeviceConnectionUseCase
@@ -166,6 +167,7 @@ class SettingsViewModelTest {
                     MonitoringSettings.default.copy(
                         mode = MonitoringMode.AlwaysOnForegroundService,
                         foregroundPollingIntervalSeconds = 120,
+                        periodicBackgroundIntervalMinutes = 30,
                     ),
                 )
             val viewModel = viewModel(monitoringSettingsRepository = monitoringRepository)
@@ -174,6 +176,7 @@ class SettingsViewModelTest {
             val state = viewModel.uiState.value
             assertEquals(MonitoringMode.AlwaysOnForegroundService, state.monitoringMode)
             assertEquals(120, state.foregroundPollingIntervalSeconds)
+            assertEquals(30, state.periodicBackgroundIntervalMinutes)
             viewModel.viewModelScope.cancel()
         }
 
@@ -193,6 +196,21 @@ class SettingsViewModelTest {
         }
 
     @Test
+    fun `periodic background interval selection persists supported value`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val monitoringRepository = FakeMonitoringSettingsRepository()
+            val viewModel = viewModel(monitoringSettingsRepository = monitoringRepository)
+            runCurrent()
+
+            viewModel.onPeriodicBackgroundIntervalSelected(30)
+            runCurrent()
+
+            assertEquals(30, monitoringRepository.state.value.periodicBackgroundIntervalMinutes)
+            assertEquals(30, viewModel.uiState.value.periodicBackgroundIntervalMinutes)
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
     fun `start always-on monitoring delegates to controller and reports success`() =
         runTest(mainDispatcherRule.dispatcher) {
             val controller = FakeMonitoringServiceController()
@@ -203,6 +221,21 @@ class SettingsViewModelTest {
             runCurrent()
 
             assertEquals(listOf("start"), controller.actions)
+            assertEquals(MonitoringActionState.Started, viewModel.uiState.value.monitoringActionState)
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
+    fun `start battery-friendly monitoring delegates to controller and reports success`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val controller = FakeMonitoringServiceController()
+            val viewModel = viewModel(monitoringServiceController = controller)
+            runCurrent()
+
+            viewModel.onBatteryFriendlyMonitoringEnabled()
+            runCurrent()
+
+            assertEquals(listOf("startPeriodic"), controller.actions)
             assertEquals(MonitoringActionState.Started, viewModel.uiState.value.monitoringActionState)
             viewModel.viewModelScope.cancel()
         }
@@ -263,6 +296,8 @@ class SettingsViewModelTest {
                     saveRefreshInterval = SaveRefreshIntervalUseCase(settingsRepository),
                     saveForegroundPollingInterval =
                         SaveForegroundPollingIntervalUseCase(monitoringSettingsRepository),
+                    savePeriodicBackgroundInterval =
+                        SavePeriodicBackgroundIntervalUseCase(monitoringSettingsRepository),
                     saveNotificationsEnabled = SaveNotificationsEnabledUseCase(settingsRepository),
                     saveThemeMode = SaveThemeModeUseCase(settingsRepository),
                     testDeviceConnection = TestDeviceConnectionUseCase(getCurrentMeasurement),
@@ -348,6 +383,11 @@ class SettingsViewModelTest {
 
         override suspend fun startAlwaysOnMonitoring(): MonitoringServiceControllerResult {
             actions += "start"
+            return startResult
+        }
+
+        override suspend fun startBatteryFriendlyMonitoring(): MonitoringServiceControllerResult {
+            actions += "startPeriodic"
             return startResult
         }
 

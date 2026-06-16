@@ -52,6 +52,7 @@ fun SettingsRoute(
                 },
                 onThemeModeSelected = viewModel::onThemeModeSelected,
                 onForegroundPollingIntervalSelected = viewModel::onForegroundPollingIntervalSelected,
+                onPeriodicBackgroundIntervalSelected = viewModel::onPeriodicBackgroundIntervalSelected,
                 onStartAlwaysOnMonitoring = {
                     if (hasNotificationPermission(context)) {
                         viewModel.onAlwaysOnMonitoringEnabledChanged(true)
@@ -59,6 +60,7 @@ fun SettingsRoute(
                         monitoringPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
                 },
+                onStartBatteryFriendlyMonitoring = viewModel::onBatteryFriendlyMonitoringEnabled,
                 onStopMonitoring = { viewModel.onAlwaysOnMonitoringEnabledChanged(false) },
             ),
     )

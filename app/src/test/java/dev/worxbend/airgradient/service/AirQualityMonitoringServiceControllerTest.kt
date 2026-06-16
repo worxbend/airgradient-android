@@ -65,10 +65,12 @@ class AirQualityMonitoringServiceControllerTest {
         runTest {
             val monitoringRepository = FakeMonitoringSettingsRepository()
             val gateway = RecordingMonitoringServiceGateway()
+            val scheduler = RecordingPeriodicMonitoringScheduler()
             val controller =
                 controller(
                     monitoringSettingsRepository = monitoringRepository,
                     serviceGateway = gateway,
+                    periodicScheduler = scheduler,
                 )
 
             val result = controller.startAlwaysOnMonitoring()
@@ -76,6 +78,50 @@ class AirQualityMonitoringServiceControllerTest {
             assertEquals(MonitoringServiceControllerResult.Started, result)
             assertEquals(MonitoringMode.AlwaysOnForegroundService, monitoringRepository.state.value.mode)
             assertEquals(listOf("start"), gateway.actions)
+            assertEquals(listOf("cancel"), scheduler.actions)
+        }
+
+    @Test
+    fun `start battery-friendly persists periodic mode and schedules worker`() =
+        runTest {
+            val monitoringRepository = FakeMonitoringSettingsRepository()
+            val gateway = RecordingMonitoringServiceGateway()
+            val scheduler = RecordingPeriodicMonitoringScheduler()
+            val controller =
+                controller(
+                    monitoringSettingsRepository = monitoringRepository,
+                    serviceGateway = gateway,
+                    periodicScheduler = scheduler,
+                )
+
+            val result = controller.startBatteryFriendlyMonitoring()
+
+            assertEquals(MonitoringServiceControllerResult.Started, result)
+            assertEquals(MonitoringMode.BatteryFriendlyPeriodic, monitoringRepository.state.value.mode)
+            assertEquals(listOf("stopRuntime"), gateway.actions)
+            assertEquals(listOf("schedule:PT15M"), scheduler.actions)
+        }
+
+    @Test
+    fun `start battery-friendly rejects missing device URL`() =
+        runTest {
+            val gateway = RecordingMonitoringServiceGateway()
+            val scheduler = RecordingPeriodicMonitoringScheduler()
+            val controller =
+                controller(
+                    settingsRepository = FakeSettingsRepository(settings(serverUrl = null)),
+                    serviceGateway = gateway,
+                    periodicScheduler = scheduler,
+                )
+
+            val result = controller.startBatteryFriendlyMonitoring()
+
+            assertEquals(
+                MonitoringServiceControllerResult.Rejected(MonitoringPolicyValidationError.MissingDeviceUrl),
+                result,
+            )
+            assertEquals(emptyList<String>(), gateway.actions)
+            assertEquals(emptyList<String>(), scheduler.actions)
         }
 
     @Test
@@ -86,10 +132,12 @@ class AirQualityMonitoringServiceControllerTest {
                     MonitoringSettings.default.copy(mode = MonitoringMode.AlwaysOnForegroundService),
                 )
             val gateway = RecordingMonitoringServiceGateway()
+            val scheduler = RecordingPeriodicMonitoringScheduler()
             val controller =
                 controller(
                     monitoringSettingsRepository = monitoringRepository,
                     serviceGateway = gateway,
+                    periodicScheduler = scheduler,
                 )
 
             val result = controller.stopMonitoring()
@@ -97,6 +145,7 @@ class AirQualityMonitoringServiceControllerTest {
             assertEquals(MonitoringServiceControllerResult.Stopped, result)
             assertEquals(MonitoringMode.Off, monitoringRepository.state.value.mode)
             assertEquals(listOf("stop"), gateway.actions)
+            assertEquals(listOf("cancel"), scheduler.actions)
         }
 
     @Test
@@ -114,12 +163,14 @@ class AirQualityMonitoringServiceControllerTest {
         monitoringSettingsRepository: FakeMonitoringSettingsRepository = FakeMonitoringSettingsRepository(),
         permissionChecker: MonitoringNotificationPermissionChecker = FakeMonitoringNotificationPermissionChecker(),
         serviceGateway: RecordingMonitoringServiceGateway = RecordingMonitoringServiceGateway(),
+        periodicScheduler: PeriodicMonitoringScheduler = RecordingPeriodicMonitoringScheduler(),
     ): AirQualityMonitoringServiceController =
         AirQualityMonitoringServiceController(
             settingsRepository = settingsRepository,
             monitoringSettingsRepository = monitoringSettingsRepository,
             permissionChecker = permissionChecker,
             serviceGateway = serviceGateway,
+            periodicScheduler = periodicScheduler,
         )
 
     private fun settings(serverUrl: String? = "http://192.168.1.201"): AppSettings =
@@ -202,8 +253,24 @@ class AirQualityMonitoringServiceControllerTest {
             actions += "stop"
         }
 
+        override fun stopForegroundMonitoringRuntime() {
+            actions += "stopRuntime"
+        }
+
         override fun refreshNow() {
             actions += "refresh"
+        }
+    }
+
+    private class RecordingPeriodicMonitoringScheduler : PeriodicMonitoringScheduler {
+        val actions = mutableListOf<String>()
+
+        override fun schedulePeriodicMonitoring(interval: Duration) {
+            actions += "schedule:$interval"
+        }
+
+        override fun cancelPeriodicMonitoring() {
+            actions += "cancel"
         }
     }
 }

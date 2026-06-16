@@ -1397,6 +1397,31 @@ Behavior notes:
 - Battery-friendly WorkManager monitoring, last background check timestamps, minimum alert severity, recovery toggles, and device-unreachable toggles remain deferred.
 ```
 
+### Iteration 25 — Battery-Friendly WorkManager Monitoring
+
+Implemented battery-friendly periodic monitoring:
+
+```text
+- added WorkManager runtime dependency using the official AndroidX 2.11.2 release
+- added AirQualityWorkerScheduler with unique periodic work, UPDATE scheduling, and connected-network constraint
+- added AirQualityCheckWorker that runs one MonitoringLoopRunner tick when mode is BatteryFriendlyPeriodic
+- controller now starts battery-friendly monitoring, cancels periodic work when switching to always-on/off, and keeps service intents out of UI
+- settings state and screen now expose battery-friendly interval chips for 15 min, 30 min, and 1 hour
+- SettingsViewModel can persist periodic interval changes and start battery-friendly monitoring through the controller
+- Compose UI and unit tests cover periodic interval selection, battery-friendly start callbacks, scheduler delegation, and validation errors
+- README, architecture, and development docs now document inexact WorkManager behavior
+```
+
+Behavior notes:
+
+```text
+- WorkManager is only used for 15-minute-or-longer battery-friendly checks; 30-second checks remain foreground-service only.
+- Battery-friendly monitoring requires a configured device URL but does not require Android 13+ notification permission because it has no persistent foreground notification.
+- Smart alert decisions still use the shared persisted NotificationDecisionEngine path; if alerts are disabled, periodic checks only refresh decision state through the no-alert path.
+- The worker disables monitoring and cancels the periodic schedule if the configured device URL is removed before a scheduled run.
+- Last background check timestamps, minimum alert severity, recovery toggles, and device-unreachable toggles remain deferred.
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

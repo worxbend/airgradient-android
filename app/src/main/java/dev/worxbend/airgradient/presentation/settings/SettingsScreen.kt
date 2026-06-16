@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.presentation.settings.components.DeviceUrlInput
 import dev.worxbend.airgradient.presentation.settings.components.DeviceUrlInputActions
+import dev.worxbend.airgradient.presentation.settings.components.MonitoringControlActions
 import dev.worxbend.airgradient.presentation.settings.components.MonitoringControls
 import dev.worxbend.airgradient.presentation.settings.components.RefreshIntervalSelector
 import dev.worxbend.airgradient.presentation.settings.components.ThemeSelector
@@ -88,7 +89,9 @@ data class SettingsScreenActions(
     val onNotificationsEnabledChanged: (Boolean) -> Unit,
     val onThemeModeSelected: (AppThemeMode) -> Unit,
     val onForegroundPollingIntervalSelected: (Int) -> Unit,
+    val onPeriodicBackgroundIntervalSelected: (Int) -> Unit,
     val onStartAlwaysOnMonitoring: () -> Unit,
+    val onStartBatteryFriendlyMonitoring: () -> Unit,
     val onStopMonitoring: () -> Unit,
 )
 
@@ -141,10 +144,16 @@ private fun SettingsContent(
                 MonitoringControls(
                     mode = state.monitoringMode,
                     foregroundPollingIntervalSeconds = state.foregroundPollingIntervalSeconds,
+                    periodicBackgroundIntervalMinutes = state.periodicBackgroundIntervalMinutes,
                     actionState = state.monitoringActionState,
-                    onForegroundPollingIntervalSelected = actions.onForegroundPollingIntervalSelected,
-                    onStartAlwaysOnMonitoring = actions.onStartAlwaysOnMonitoring,
-                    onStopMonitoring = actions.onStopMonitoring,
+                    actions =
+                        MonitoringControlActions(
+                            onForegroundPollingIntervalSelected = actions.onForegroundPollingIntervalSelected,
+                            onPeriodicBackgroundIntervalSelected = actions.onPeriodicBackgroundIntervalSelected,
+                            onStartAlwaysOnMonitoring = actions.onStartAlwaysOnMonitoring,
+                            onStartBatteryFriendlyMonitoring = actions.onStartBatteryFriendlyMonitoring,
+                            onStopMonitoring = actions.onStopMonitoring,
+                        ),
                 )
             }
         }

@@ -45,28 +45,36 @@ class AirQualityMonitoringService : Service() {
         intent: Intent?,
         flags: Int,
         startId: Int,
-    ): Int {
+    ): Int =
         when (intent?.action ?: ACTION_START) {
             ACTION_STOP -> {
                 serviceScope.launch {
                     stopMonitoring(MonitoringStopReason.UserRequested)
                 }
-                return START_NOT_STICKY
+                START_NOT_STICKY
+            }
+
+            ACTION_STOP_FOREGROUND_RUNTIME -> {
+                stopForegroundRuntime()
+                START_NOT_STICKY
             }
 
             ACTION_REFRESH_NOW -> {
                 ensureForegroundStarted()
                 refreshNow()
+                START_STICKY
             }
 
             ACTION_START -> {
                 ensureForegroundStarted()
                 startMonitoringLoop()
+                START_STICKY
+            }
+
+            else -> {
+                START_STICKY
             }
         }
-
-        return START_STICKY
-    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -193,10 +201,20 @@ class AirQualityMonitoringService : Service() {
         stopSelf()
     }
 
+    private fun stopForegroundRuntime() {
+        monitoringJob?.cancel()
+        monitoringJob = null
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        statusNotificationUpdater.cancel()
+        stopSelf()
+    }
+
     companion object {
         const val ACTION_START = "dev.worxbend.airgradient.action.START_MONITORING"
         const val ACTION_REFRESH_NOW = "dev.worxbend.airgradient.action.REFRESH_MONITORING_NOW"
         const val ACTION_STOP = "dev.worxbend.airgradient.action.STOP_MONITORING"
+        const val ACTION_STOP_FOREGROUND_RUNTIME =
+            "dev.worxbend.airgradient.action.STOP_FOREGROUND_MONITORING_RUNTIME"
 
         fun intent(
             context: Context,

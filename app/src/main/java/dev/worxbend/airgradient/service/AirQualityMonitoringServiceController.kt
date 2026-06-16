@@ -8,12 +8,14 @@ import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationResu
 import dev.worxbend.airgradient.domain.repository.MonitoringSettingsRepository
 import dev.worxbend.airgradient.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.first
+import java.time.Duration
 
 class AirQualityMonitoringServiceController(
     private val settingsRepository: SettingsRepository,
     private val monitoringSettingsRepository: MonitoringSettingsRepository,
     private val permissionChecker: MonitoringNotificationPermissionChecker,
     private val serviceGateway: MonitoringServiceGateway,
+    private val periodicScheduler: PeriodicMonitoringScheduler = NoOpPeriodicMonitoringScheduler,
 ) : MonitoringServiceController {
     override suspend fun startAlwaysOnMonitoring(): MonitoringServiceControllerResult {
         val appSettings = settingsRepository.settings.first()
@@ -33,8 +35,39 @@ class AirQualityMonitoringServiceController(
 
         return when (val validation = policy.validate(permissionState)) {
             MonitoringPolicyValidationResult.Valid -> {
+                periodicScheduler.cancelPeriodicMonitoring()
                 monitoringSettingsRepository.updateMonitoringMode(MonitoringMode.AlwaysOnForegroundService)
                 serviceGateway.startForegroundMonitoring()
+                MonitoringServiceControllerResult.Started
+            }
+
+            is MonitoringPolicyValidationResult.Invalid -> {
+                MonitoringServiceControllerResult.Rejected(validation.error)
+            }
+        }
+    }
+
+    override suspend fun startBatteryFriendlyMonitoring(): MonitoringServiceControllerResult {
+        val appSettings = settingsRepository.settings.first()
+        val monitoringSettings = monitoringSettingsRepository.getMonitoringSettings()
+        val policy =
+            MonitoringPolicy.default.copy(
+                mode = MonitoringMode.BatteryFriendlyPeriodic,
+                foregroundPollingInterval = monitoringSettings.foregroundPollingInterval,
+                periodicBackgroundInterval = monitoringSettings.periodicBackgroundInterval,
+            )
+        val permissionState =
+            MonitoringPermissionState(
+                hasConfiguredDeviceUrl = !appSettings.serverUrl.isNullOrBlank(),
+                notificationPermissionRequired = permissionChecker.isNotificationPermissionRequired,
+                notificationPermissionGranted = permissionChecker.canPostNotifications(),
+            )
+
+        return when (val validation = policy.validate(permissionState)) {
+            MonitoringPolicyValidationResult.Valid -> {
+                serviceGateway.stopForegroundMonitoringRuntime()
+                monitoringSettingsRepository.updateMonitoringMode(MonitoringMode.BatteryFriendlyPeriodic)
+                periodicScheduler.schedulePeriodicMonitoring(monitoringSettings.periodicBackgroundInterval)
                 MonitoringServiceControllerResult.Started
             }
 
@@ -47,6 +80,7 @@ class AirQualityMonitoringServiceController(
     override suspend fun stopMonitoring(): MonitoringServiceControllerResult.Stopped {
         monitoringSettingsRepository.updateMonitoringMode(MonitoringMode.Off)
         serviceGateway.stopForegroundMonitoring()
+        periodicScheduler.cancelPeriodicMonitoring()
         return MonitoringServiceControllerResult.Stopped
     }
 
@@ -57,6 +91,8 @@ class AirQualityMonitoringServiceController(
 
 interface MonitoringServiceController {
     suspend fun startAlwaysOnMonitoring(): MonitoringServiceControllerResult
+
+    suspend fun startBatteryFriendlyMonitoring(): MonitoringServiceControllerResult
 
     suspend fun stopMonitoring(): MonitoringServiceControllerResult.Stopped
 
@@ -84,12 +120,29 @@ interface MonitoringServiceGateway {
 
     fun stopForegroundMonitoring()
 
+    fun stopForegroundMonitoringRuntime()
+
     fun refreshNow()
+}
+
+interface PeriodicMonitoringScheduler {
+    fun schedulePeriodicMonitoring(interval: Duration)
+
+    fun cancelPeriodicMonitoring()
+}
+
+object NoOpPeriodicMonitoringScheduler : PeriodicMonitoringScheduler {
+    override fun schedulePeriodicMonitoring(interval: Duration) = Unit
+
+    override fun cancelPeriodicMonitoring() = Unit
 }
 
 object NoOpMonitoringServiceController : MonitoringServiceController {
     @Suppress("MaxLineLength")
     override suspend fun startAlwaysOnMonitoring(): MonitoringServiceControllerResult = MonitoringServiceControllerResult.Started
+
+    @Suppress("MaxLineLength")
+    override suspend fun startBatteryFriendlyMonitoring(): MonitoringServiceControllerResult = MonitoringServiceControllerResult.Started
 
     @Suppress("MaxLineLength")
     override suspend fun stopMonitoring(): MonitoringServiceControllerResult.Stopped = MonitoringServiceControllerResult.Stopped

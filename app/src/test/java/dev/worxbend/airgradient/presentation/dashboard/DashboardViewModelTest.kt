@@ -357,6 +357,11 @@ class DashboardViewModelTest {
             return MonitoringServiceControllerResult.Started
         }
 
+        override suspend fun startBatteryFriendlyMonitoring(): MonitoringServiceControllerResult {
+            monitoringRepository.updateMonitoringMode(MonitoringMode.BatteryFriendlyPeriodic)
+            return MonitoringServiceControllerResult.Started
+        }
+
         override suspend fun stopMonitoring(): MonitoringServiceControllerResult.Stopped {
             stopCalls += 1
             monitoringRepository.updateMonitoringMode(MonitoringMode.Off)

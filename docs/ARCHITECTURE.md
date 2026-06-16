@@ -20,8 +20,9 @@ Current baseline:
 - `core/network` and `core/time` contain app-wide network construction and injectable time access.
 - `core/dispatchers` contains injectable coroutine dispatcher grouping for ViewModels and use cases.
 - `presentation/dashboard` contains the dashboard UI state model, presentation formatting, monitoring summary, and ViewModel refresh orchestration.
-- `presentation/settings` contains the settings form, Android 13+ notification permission request, always-on monitoring controls, and settings ViewModel.
+- `presentation/settings` contains the settings form, Android 13+ notification permission request, monitoring controls, and settings ViewModel.
 - `service` contains the always-on foreground monitoring service foundation, service controller, persistent status notification, and reusable monitoring loop runner.
+- `worker` contains battery-friendly WorkManager scheduling and the periodic check worker.
 
 Planned package responsibilities:
 
@@ -57,7 +58,7 @@ and recovery confirmation against a persisted `NotificationState`.
 
 `data/notifications/NotificationStateRepositoryImpl` stores notification decision state in a dedicated DataStore file so
 cooldown and recovery state survive process restart. `DashboardViewModel` now uses the same decision engine and state
-repository that the future foreground service and WorkManager worker will use. Disabling notifications or clearing the
+repository used by dashboard refreshes, the foreground service, and the WorkManager worker. Disabling notifications or clearing the
 device URL clears the persisted decision state.
 
 Android delivery is isolated in `data/notifications/AndroidNotificationMessageDispatcher`. It creates the air-quality
@@ -82,5 +83,19 @@ notification decision state when alerts are disabled, persists cooldown/recovery
 returns typed `MonitoringTickResult` values for the service to render in the persistent notification.
 
 The dashboard observes `MonitoringSettings` and renders a compact monitoring card with the current mode, foreground
-polling interval, and quick start/stop actions. Battery-friendly WorkManager checks, last background check timestamps,
-and advanced alert preference controls are still deferred.
+polling interval, and quick start/stop actions.
+
+## Battery-Friendly Monitoring
+
+Battery-friendly monitoring is scheduled by `worker/AirQualityWorkerScheduler` as unique periodic WorkManager work with
+a connected-network constraint. It is only started through `AirQualityMonitoringServiceController`, which validates that
+a device URL is configured, stops any active foreground-service command path, persists `BatteryFriendlyPeriodic` mode,
+and schedules the worker at the persisted periodic interval.
+
+`worker/AirQualityCheckWorker` loads current settings from `AppGraph`, refuses to run when mode is no longer
+`BatteryFriendlyPeriodic`, disables monitoring if the device URL has been removed, and delegates the actual fetch and
+notification decision path to `MonitoringLoopRunner`. The worker intentionally treats each scheduled execution as
+best-effort success after the runner handles the result so WorkManager keeps the periodic schedule. WorkManager intervals
+are 15 minutes or longer and are inexact by Android design.
+
+Last background check timestamps and advanced alert preference controls are still deferred.

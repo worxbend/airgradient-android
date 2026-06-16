@@ -17,6 +17,8 @@ data class SettingsUiState(
     val monitoringMode: MonitoringMode = MonitoringMode.Off,
     val foregroundPollingIntervalSeconds: Int =
         MonitoringSettings.DEFAULT_FOREGROUND_POLLING_INTERVAL_SECONDS,
+    val periodicBackgroundIntervalMinutes: Int =
+        MonitoringSettings.DEFAULT_PERIODIC_BACKGROUND_INTERVAL_MINUTES,
     val monitoringActionState: MonitoringActionState = MonitoringActionState.Idle,
     val saveState: DeviceUrlSaveState = DeviceUrlSaveState.Idle,
     val connectionTestState: ConnectionTestState = ConnectionTestState.Idle,

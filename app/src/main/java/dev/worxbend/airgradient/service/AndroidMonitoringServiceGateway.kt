@@ -35,6 +35,15 @@ class AndroidMonitoringServiceGateway(
         appContext.startService(AirQualityMonitoringService.intent(appContext, AirQualityMonitoringService.ACTION_STOP))
     }
 
+    override fun stopForegroundMonitoringRuntime() {
+        appContext.startService(
+            AirQualityMonitoringService.intent(
+                appContext,
+                AirQualityMonitoringService.ACTION_STOP_FOREGROUND_RUNTIME,
+            ),
+        )
+    }
+
     override fun refreshNow() {
         appContext.startService(
             AirQualityMonitoringService.intent(appContext, AirQualityMonitoringService.ACTION_REFRESH_NOW),

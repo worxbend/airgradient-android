@@ -2,7 +2,7 @@
 
 Native Kotlin and Jetpack Compose Android application for local AirGradient-compatible devices.
 
-The app is being implemented incrementally from `PLAN.md`. The current codebase contains the Android project shell, Compose theme, quality tooling, source-derived sensor logic, the local `/measures/current` network repository, DataStore-backed settings persistence, state-driven dashboard UI with app-bar and pull-to-refresh actions, settings/navigation wiring, foreground air-quality notifications, and opt-in always-on foreground monitoring controls.
+The app is being implemented incrementally from `PLAN.md`. The current codebase contains the Android project shell, Compose theme, quality tooling, source-derived sensor logic, the local `/measures/current` network repository, DataStore-backed settings persistence, state-driven dashboard UI with app-bar and pull-to-refresh actions, settings/navigation wiring, foreground air-quality notifications, opt-in always-on foreground monitoring, and battery-friendly periodic monitoring.
 
 ## Requirements
 
@@ -44,7 +44,9 @@ Most AirGradient local-server installs use plain HTTP on the local network. The 
 
 Notifications are disabled by default. When enabled, Android 13+ devices request `POST_NOTIFICATIONS`; alerts are evaluated from foreground dashboard refreshes and the always-on monitoring loop through the persisted notification decision engine. Cooldown and recovery state survive app process restarts.
 
-Always-on monitoring is opt-in from Settings or the dashboard monitoring card. It requires a configured device URL and notification permission on Android 13+, starts a visible foreground service, and supports 30 second, 1 minute, 2 minute, and 5 minute polling intervals. Battery-friendly WorkManager checks remain deferred.
+Always-on monitoring is opt-in from Settings or the dashboard monitoring card. It requires a configured device URL and notification permission on Android 13+, starts a visible foreground service, and supports 30 second, 1 minute, 2 minute, and 5 minute polling intervals.
+
+Battery-friendly monitoring is opt-in from Settings. It uses WorkManager with a connected-network constraint and supports 15 minute, 30 minute, and 1 hour intervals. Android schedules this work inexactly, so checks may run at or after the selected interval rather than in real time.
 
 ## Privacy
 

@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@Suppress("TooManyFunctions")
 class SettingsViewModel(
     private val useCases: SettingsUseCases,
     private val monitoringServiceController: MonitoringServiceController,
@@ -150,6 +151,17 @@ class SettingsViewModel(
         }
     }
 
+    fun onPeriodicBackgroundIntervalSelected(minutes: Int) {
+        val supportedMinutes = minutes.coerceAtLeast(MonitoringSettings.MIN_PERIODIC_BACKGROUND_INTERVAL_MINUTES)
+        _uiState.update { state -> state.copy(periodicBackgroundIntervalMinutes = supportedMinutes) }
+        viewModelScope.launch(dispatchers.io) {
+            useCases.savePeriodicBackgroundInterval(supportedMinutes)
+            if (_uiState.value.monitoringMode == MonitoringMode.BatteryFriendlyPeriodic) {
+                monitoringServiceController.startBatteryFriendlyMonitoring()
+            }
+        }
+    }
+
     fun onAlwaysOnMonitoringEnabledChanged(enabled: Boolean) {
         if (enabled) {
             _uiState.update { state -> state.copy(monitoringActionState = MonitoringActionState.Starting) }
@@ -168,6 +180,19 @@ class SettingsViewModel(
                 monitoringServiceController.stopMonitoring()
                 _uiState.update { state -> state.copy(monitoringActionState = MonitoringActionState.Stopped) }
             }
+        }
+    }
+
+    fun onBatteryFriendlyMonitoringEnabled() {
+        _uiState.update { state -> state.copy(monitoringActionState = MonitoringActionState.Starting) }
+        viewModelScope.launch(dispatchers.io) {
+            val actionState =
+                when (val result = monitoringServiceController.startBatteryFriendlyMonitoring()) {
+                    MonitoringServiceControllerResult.Started -> MonitoringActionState.Started
+                    MonitoringServiceControllerResult.Stopped -> MonitoringActionState.Stopped
+                    is MonitoringServiceControllerResult.Rejected -> MonitoringActionState.Rejected(result.error)
+                }
+            _uiState.update { state -> state.copy(monitoringActionState = actionState) }
         }
     }
 
@@ -210,8 +235,9 @@ private fun SettingsUiState.applyMonitoringSettings(settings: MonitoringSettings
     copy(
         monitoringMode = settings.mode,
         foregroundPollingIntervalSeconds = settings.foregroundPollingIntervalSeconds,
+        periodicBackgroundIntervalMinutes = settings.periodicBackgroundIntervalMinutes,
         monitoringActionState =
-            if (settings.mode == MonitoringMode.AlwaysOnForegroundService &&
+            if (settings.mode != MonitoringMode.Off &&
                 monitoringActionState == MonitoringActionState.Starting
             ) {
                 MonitoringActionState.Started

@@ -133,8 +133,10 @@ class SettingsScreenTest {
 
     @Test
     fun monitoringControlsDispatchStartStopAndIntervalCallbacks() {
-        val selectedInterval = AtomicReference<Int>()
+        val selectedForegroundInterval = AtomicReference<Int>()
+        val selectedPeriodicInterval = AtomicReference<Int>()
         val startClicks = AtomicInteger(0)
+        val periodicStartClicks = AtomicInteger(0)
         val stopClicks = AtomicInteger(0)
 
         composeRule.setContent {
@@ -144,8 +146,10 @@ class SettingsScreenTest {
                     onNavigateBack = {},
                     actions =
                         actions(
-                            onForegroundPollingIntervalSelected = selectedInterval::set,
+                            onForegroundPollingIntervalSelected = selectedForegroundInterval::set,
+                            onPeriodicBackgroundIntervalSelected = selectedPeriodicInterval::set,
                             onStartAlwaysOnMonitoring = { startClicks.incrementAndGet() },
+                            onStartBatteryFriendlyMonitoring = { periodicStartClicks.incrementAndGet() },
                             onStopMonitoring = { stopClicks.incrementAndGet() },
                         ),
                 )
@@ -154,11 +158,15 @@ class SettingsScreenTest {
 
         composeRule.onNodeWithText("Monitoring").performScrollTo()
         composeRule.onNodeWithText("1m").performClick()
+        composeRule.onNodeWithText("30m").performClick()
         composeRule.onNodeWithText("Start always-on").performClick()
+        composeRule.onNodeWithText("Start battery-friendly").performClick()
 
         composeRule.runOnIdle {
-            check(selectedInterval.get() == 60)
+            check(selectedForegroundInterval.get() == 60)
+            check(selectedPeriodicInterval.get() == 30)
             check(startClicks.get() == 1)
+            check(periodicStartClicks.get() == 1)
             check(stopClicks.get() == 0)
         }
 
@@ -173,8 +181,10 @@ class SettingsScreenTest {
                     onNavigateBack = {},
                     actions =
                         actions(
-                            onForegroundPollingIntervalSelected = selectedInterval::set,
+                            onForegroundPollingIntervalSelected = selectedForegroundInterval::set,
+                            onPeriodicBackgroundIntervalSelected = selectedPeriodicInterval::set,
                             onStartAlwaysOnMonitoring = { startClicks.incrementAndGet() },
+                            onStartBatteryFriendlyMonitoring = { periodicStartClicks.incrementAndGet() },
                             onStopMonitoring = { stopClicks.incrementAndGet() },
                         ),
                 )
@@ -186,6 +196,7 @@ class SettingsScreenTest {
 
         composeRule.runOnIdle {
             check(startClicks.get() == 1)
+            check(periodicStartClicks.get() == 1)
             check(stopClicks.get() == 1)
         }
     }
@@ -246,7 +257,9 @@ class SettingsScreenTest {
         onNotificationsEnabledChanged: (Boolean) -> Unit = {},
         onThemeModeSelected: (AppThemeMode) -> Unit = {},
         onForegroundPollingIntervalSelected: (Int) -> Unit = {},
+        onPeriodicBackgroundIntervalSelected: (Int) -> Unit = {},
         onStartAlwaysOnMonitoring: () -> Unit = {},
+        onStartBatteryFriendlyMonitoring: () -> Unit = {},
         onStopMonitoring: () -> Unit = {},
     ): SettingsScreenActions =
         SettingsScreenActions(
@@ -257,7 +270,9 @@ class SettingsScreenTest {
             onNotificationsEnabledChanged = onNotificationsEnabledChanged,
             onThemeModeSelected = onThemeModeSelected,
             onForegroundPollingIntervalSelected = onForegroundPollingIntervalSelected,
+            onPeriodicBackgroundIntervalSelected = onPeriodicBackgroundIntervalSelected,
             onStartAlwaysOnMonitoring = onStartAlwaysOnMonitoring,
+            onStartBatteryFriendlyMonitoring = onStartBatteryFriendlyMonitoring,
             onStopMonitoring = onStopMonitoring,
         )
 }
