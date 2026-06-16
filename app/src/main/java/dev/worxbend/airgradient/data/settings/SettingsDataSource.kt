@@ -9,6 +9,8 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -17,7 +19,7 @@ import java.io.IOException
 class SettingsDataSource(
     private val dataStore: DataStore<Preferences>,
 ) {
-    val settings: Flow<AppSettings> =
+    private val preferences =
         dataStore.data
             .catch { error ->
                 if (error is IOException) {
@@ -25,7 +27,13 @@ class SettingsDataSource(
                 } else {
                     throw error
                 }
-            }.map(::mapPreferences)
+            }
+
+    val settings: Flow<AppSettings> =
+        preferences.map(::mapPreferences)
+
+    val monitoringSettings: Flow<MonitoringSettings> =
+        preferences.map(::mapMonitoringPreferences)
 
     suspend fun saveServerUrl(serverUrl: String?) {
         dataStore.edit { preferences ->
@@ -55,6 +63,24 @@ class SettingsDataSource(
         }
     }
 
+    suspend fun saveMonitoringMode(mode: MonitoringMode) {
+        dataStore.edit { preferences ->
+            preferences[MONITORING_MODE] = mode.name
+        }
+    }
+
+    suspend fun saveForegroundPollingIntervalSeconds(seconds: Int) {
+        dataStore.edit { preferences ->
+            preferences[MONITORING_FOREGROUND_INTERVAL_SECONDS] = seconds
+        }
+    }
+
+    suspend fun savePeriodicBackgroundIntervalMinutes(minutes: Int) {
+        dataStore.edit { preferences ->
+            preferences[MONITORING_PERIODIC_INTERVAL_MINUTES] = minutes
+        }
+    }
+
     private fun mapPreferences(preferences: Preferences): AppSettings =
         AppSettings(
             serverUrl = preferences[SERVER_URL],
@@ -66,15 +92,41 @@ class SettingsDataSource(
             themeMode = preferences[THEME_MODE].toThemeMode(),
         )
 
+    private fun mapMonitoringPreferences(preferences: Preferences): MonitoringSettings =
+        MonitoringSettings(
+            mode = preferences[MONITORING_MODE].toMonitoringMode(),
+            foregroundPollingIntervalSeconds =
+                preferences[MONITORING_FOREGROUND_INTERVAL_SECONDS]
+                    ?.coerceAtLeast(MonitoringSettings.MIN_FOREGROUND_POLLING_INTERVAL_SECONDS)
+                    ?: MonitoringSettings.DEFAULT_FOREGROUND_POLLING_INTERVAL_SECONDS,
+            periodicBackgroundIntervalMinutes =
+                preferences[MONITORING_PERIODIC_INTERVAL_MINUTES]
+                    ?.coerceAtLeast(MonitoringSettings.MIN_PERIODIC_BACKGROUND_INTERVAL_MINUTES)
+                    ?: MonitoringSettings.DEFAULT_PERIODIC_BACKGROUND_INTERVAL_MINUTES,
+            persistentNotificationEnabled = preferences[MONITORING_PERSISTENT_NOTIFICATION_ENABLED] ?: true,
+        )
+
     private fun String?.toThemeMode(): AppThemeMode =
         this
             ?.let { storedValue -> AppThemeMode.entries.firstOrNull { it.name == storedValue } }
             ?: AppThemeMode.SYSTEM
+
+    private fun String?.toMonitoringMode(): MonitoringMode =
+        this
+            ?.let { storedValue -> MonitoringMode.entries.firstOrNull { it.name == storedValue } }
+            ?: MonitoringMode.Off
 
     private companion object {
         val SERVER_URL: Preferences.Key<String> = stringPreferencesKey("server_url")
         val REFRESH_INTERVAL_SECONDS: Preferences.Key<Int> = intPreferencesKey("refresh_interval_seconds")
         val NOTIFICATIONS_ENABLED: Preferences.Key<Boolean> = booleanPreferencesKey("notifications_enabled")
         val THEME_MODE: Preferences.Key<String> = stringPreferencesKey("theme_mode")
+        val MONITORING_MODE: Preferences.Key<String> = stringPreferencesKey("monitoring_mode")
+        val MONITORING_FOREGROUND_INTERVAL_SECONDS: Preferences.Key<Int> =
+            intPreferencesKey("monitoring_foreground_interval_seconds")
+        val MONITORING_PERIODIC_INTERVAL_MINUTES: Preferences.Key<Int> =
+            intPreferencesKey("monitoring_periodic_interval_minutes")
+        val MONITORING_PERSISTENT_NOTIFICATION_ENABLED: Preferences.Key<Boolean> =
+            booleanPreferencesKey("monitoring_persistent_notification_enabled")
     }
 }
