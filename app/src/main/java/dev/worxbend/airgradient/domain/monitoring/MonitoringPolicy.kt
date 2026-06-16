@@ -13,7 +13,10 @@ data class MonitoringPolicy(
         require(!foregroundPollingInterval.isNegative && foregroundPollingInterval >= MIN_FOREGROUND_POLLING_INTERVAL) {
             "Foreground polling interval must be at least ${MIN_FOREGROUND_POLLING_INTERVAL.seconds} seconds."
         }
-        require(!periodicBackgroundInterval.isNegative && periodicBackgroundInterval >= MIN_PERIODIC_BACKGROUND_INTERVAL) {
+        require(
+            !periodicBackgroundInterval.isNegative &&
+                periodicBackgroundInterval >= MIN_PERIODIC_BACKGROUND_INTERVAL,
+        ) {
             "Periodic background interval must be at least ${MIN_PERIODIC_BACKGROUND_INTERVAL.toMinutes()} minutes."
         }
         require(maxConsecutiveFailuresBeforeDeviceAlert > 0) {

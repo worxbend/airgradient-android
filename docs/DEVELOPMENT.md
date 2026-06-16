@@ -61,4 +61,4 @@ The project will follow the package boundaries in `TECH.md`: presentation code d
 - Local AirGradient devices commonly expose HTTP, not HTTPS. `AndroidManifest.xml` sets `android:usesCleartextTraffic="true"` so normalized local URLs can be fetched.
 - Android 12+ uses `Theme.AirGradient` splash-window attributes from `values-v31/styles.xml`; pre-Android 12 devices fall back to the normal launch theme.
 - Android 13+ requires runtime `POST_NOTIFICATIONS`; the settings flow keeps alerts disabled if permission is denied.
-- DataStore settings live at `datastore/airgradient_settings.preferences_pb`; both backup XML files exclude that path from cloud backup and device transfer.
+- DataStore settings live at `datastore/airgradient_settings.preferences_pb`; notification decision state lives at `datastore/airgradient_notification_state.preferences_pb`. Both backup XML files exclude those paths from cloud backup and device transfer.

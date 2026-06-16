@@ -8,11 +8,16 @@ import dev.worxbend.airgradient.core.time.SystemClockProvider
 import dev.worxbend.airgradient.domain.error.AirGradientError
 import dev.worxbend.airgradient.domain.model.AirMeasureSnapshot
 import dev.worxbend.airgradient.domain.model.AppSettings
-import dev.worxbend.airgradient.domain.notifications.AirQualityAlert
-import dev.worxbend.airgradient.domain.notifications.AirQualityAlertNotifier
-import dev.worxbend.airgradient.domain.notifications.AirQualityAlertPolicy
-import dev.worxbend.airgradient.domain.notifications.NoOpAirQualityAlertNotifier
+import dev.worxbend.airgradient.domain.notifications.AirQualityConditionFactory
+import dev.worxbend.airgradient.domain.notifications.NoOpNotificationMessageDispatcher
+import dev.worxbend.airgradient.domain.notifications.NotificationDecision
+import dev.worxbend.airgradient.domain.notifications.NotificationDecisionEngine
+import dev.worxbend.airgradient.domain.notifications.NotificationMessageDispatcher
+import dev.worxbend.airgradient.domain.notifications.NotificationPolicy
+import dev.worxbend.airgradient.domain.notifications.NotificationState
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
+import dev.worxbend.airgradient.domain.repository.NoOpNotificationStateRepository
+import dev.worxbend.airgradient.domain.repository.NotificationStateRepository
 import dev.worxbend.airgradient.domain.sensors.SensorMetricFactory
 import dev.worxbend.airgradient.domain.sensors.SensorThresholds
 import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
@@ -30,8 +35,9 @@ import kotlinx.coroutines.sync.Mutex
 class DashboardViewModel(
     private val observeSettings: ObserveSettingsUseCase,
     private val refreshDashboard: RefreshDashboardUseCase,
-    private val alertPolicy: AirQualityAlertPolicy = AirQualityAlertPolicy(),
-    private val alertNotifier: AirQualityAlertNotifier = NoOpAirQualityAlertNotifier,
+    private val notificationStateRepository: NotificationStateRepository = NoOpNotificationStateRepository,
+    private val notificationDecisionEngine: NotificationDecisionEngine = NotificationDecisionEngine(),
+    private val notificationMessageDispatcher: NotificationMessageDispatcher = NoOpNotificationMessageDispatcher,
     private val clockProvider: ClockProvider = SystemClockProvider,
     private val dispatchers: AppDispatchers = AppDispatchers.production,
 ) : ViewModel() {
@@ -63,19 +69,19 @@ class DashboardViewModel(
         super.onCleared()
     }
 
-    private fun handleSettingsChanged(settings: AppSettings) {
+    private suspend fun handleSettingsChanged(settings: AppSettings) {
         currentSettings = settings
 
         if (settings.serverUrl.isNullOrBlank()) {
             autoRefreshJob?.cancel()
             autoRefreshJob = null
-            alertPolicy.clear()
+            notificationStateRepository.clearNotificationState()
             latestSuccessfulSnapshot = null
             previousSuccessfulSnapshot = null
             _uiState.value = DashboardUiState.Unconfigured
         } else {
             if (!settings.notificationsEnabled) {
-                alertPolicy.clear()
+                notificationStateRepository.clearNotificationState()
             }
             restartAutoRefresh(settings)
             refresh()
@@ -131,7 +137,7 @@ class DashboardViewModel(
             }
     }
 
-    private fun emitContent(
+    private suspend fun emitContent(
         settings: AppSettings,
         snapshot: AirMeasureSnapshot,
     ) {
@@ -144,12 +150,16 @@ class DashboardViewModel(
                 fetchStatusLabel = LOADED_STATUS_LABEL,
                 isRefreshing = false,
             )
-        notifyIfEnabled(settings) {
-            alertPolicy.evaluateSnapshot(snapshot, clockProvider.now())
+        evaluateNotificationDecision(settings) { state, policy ->
+            notificationDecisionEngine.evaluateCondition(
+                condition = AirQualityConditionFactory.fromSnapshot(snapshot),
+                state = state,
+                policy = policy,
+            )
         }
     }
 
-    private fun emitFailure(
+    private suspend fun emitFailure(
         settings: AppSettings,
         error: AirGradientError,
     ) {
@@ -178,21 +188,37 @@ class DashboardViewModel(
                     isRefreshing = false,
                 )
             }
-        notifyIfEnabled(settings) {
-            alertPolicy.evaluateFetchFailure(error, clockProvider.now())
+        evaluateNotificationDecision(settings) { state, policy ->
+            notificationDecisionEngine.evaluateFetchFailure(
+                error = error,
+                now = clockProvider.now(),
+                state = state,
+                policy = policy,
+            )
         }
     }
 
-    private fun notifyIfEnabled(
+    private suspend fun evaluateNotificationDecision(
         settings: AppSettings,
-        alerts: () -> List<AirQualityAlert>,
+        evaluate: (NotificationState, NotificationPolicy) -> NotificationDecision,
     ) {
         if (!settings.notificationsEnabled) {
-            alertPolicy.clear()
+            notificationStateRepository.clearNotificationState()
             return
         }
 
-        alerts().forEach(alertNotifier::showAlert)
+        val currentState = notificationStateRepository.getNotificationState()
+        val decision =
+            evaluate(
+                currentState,
+                NotificationPolicy.default.copy(notificationsEnabled = true),
+            )
+
+        notificationStateRepository.saveNotificationState(decision.nextState)
+
+        if (decision is NotificationDecision.Notify) {
+            notificationMessageDispatcher.show(decision.message)
+        }
     }
 
     private fun contentState(

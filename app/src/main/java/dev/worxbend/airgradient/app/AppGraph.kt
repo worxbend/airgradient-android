@@ -5,12 +5,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import dev.worxbend.airgradient.core.dispatchers.AppDispatchers
 import dev.worxbend.airgradient.data.airgradient.AirGradientRepositoryImpl
-import dev.worxbend.airgradient.data.notifications.AndroidAirQualityAlertNotifier
+import dev.worxbend.airgradient.data.notifications.AndroidNotificationMessageDispatcher
+import dev.worxbend.airgradient.data.notifications.NotificationStateRepositoryImpl
+import dev.worxbend.airgradient.data.notifications.airGradientNotificationStateDataStore
 import dev.worxbend.airgradient.data.settings.SettingsDataSource
 import dev.worxbend.airgradient.data.settings.SettingsRepositoryImpl
 import dev.worxbend.airgradient.data.settings.airGradientSettingsDataStore
-import dev.worxbend.airgradient.domain.notifications.AirQualityAlertPolicy
+import dev.worxbend.airgradient.domain.notifications.NotificationDecisionEngine
 import dev.worxbend.airgradient.domain.repository.AirGradientRepository
+import dev.worxbend.airgradient.domain.repository.NotificationStateRepository
 import dev.worxbend.airgradient.domain.repository.SettingsRepository
 import dev.worxbend.airgradient.domain.usecase.GetCurrentMeasurementUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
@@ -36,15 +39,19 @@ class AppGraph(
 
     private val airGradientRepository: AirGradientRepository = AirGradientRepositoryImpl()
     private val getCurrentMeasurement = GetCurrentMeasurementUseCase(airGradientRepository)
-    private val airQualityAlertNotifier = AndroidAirQualityAlertNotifier(appContext)
+    private val notificationStateRepository: NotificationStateRepository =
+        NotificationStateRepositoryImpl(appContext.airGradientNotificationStateDataStore)
+    private val notificationDecisionEngine = NotificationDecisionEngine()
+    private val notificationMessageDispatcher = AndroidNotificationMessageDispatcher(appContext)
 
     fun dashboardViewModelFactory(): ViewModelProvider.Factory =
         viewModelFactory {
             DashboardViewModel(
                 observeSettings = ObserveSettingsUseCase(settingsRepository),
                 refreshDashboard = RefreshDashboardUseCase(getCurrentMeasurement),
-                alertPolicy = AirQualityAlertPolicy(),
-                alertNotifier = airQualityAlertNotifier,
+                notificationStateRepository = notificationStateRepository,
+                notificationDecisionEngine = notificationDecisionEngine,
+                notificationMessageDispatcher = notificationMessageDispatcher,
                 dispatchers = dispatchers,
             )
         }

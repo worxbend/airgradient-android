@@ -8,12 +8,13 @@ import dev.worxbend.airgradient.domain.model.AirMeasureSnapshot
 import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.domain.model.SensorMetricKind
-import dev.worxbend.airgradient.domain.notifications.AirQualityAlert
-import dev.worxbend.airgradient.domain.notifications.AirQualityAlertKind
-import dev.worxbend.airgradient.domain.notifications.AirQualityAlertNotifier
-import dev.worxbend.airgradient.domain.notifications.AirQualityAlertPolicy
+import dev.worxbend.airgradient.domain.notifications.NotificationMessage
+import dev.worxbend.airgradient.domain.notifications.NotificationMessageDispatcher
+import dev.worxbend.airgradient.domain.notifications.NotificationState
+import dev.worxbend.airgradient.domain.notifications.NotificationType
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
 import dev.worxbend.airgradient.domain.repository.AirGradientRepository
+import dev.worxbend.airgradient.domain.repository.NotificationStateRepository
 import dev.worxbend.airgradient.domain.repository.SaveDeviceUrlResult
 import dev.worxbend.airgradient.domain.repository.SettingsRepository
 import dev.worxbend.airgradient.domain.usecase.GetCurrentMeasurementUseCase
@@ -159,16 +160,16 @@ class DashboardViewModelTest {
         }
 
     @Test
-    fun `notifications are sent after consecutive degraded readings when enabled`() =
+    fun `notifications are dispatched through persisted decision state when enabled`() =
         runTest(mainDispatcherRule.dispatcher) {
-            val notifier = RecordingAirQualityAlertNotifier()
+            val notificationStateRepository = FakeNotificationStateRepository()
+            val dispatcher = RecordingNotificationMessageDispatcher()
             val repository =
                 FakeAirGradientRepository(
                     results =
                         ArrayDeque(
                             listOf(
-                                AirGradientFetchResult.Success(firstSnapshot.copy(co2 = 1_000.0)),
-                                AirGradientFetchResult.Success(firstSnapshot.copy(co2 = 1_000.0)),
+                                AirGradientFetchResult.Success(firstSnapshot.copy(co2 = 1_300.0)),
                             ),
                         ),
                 )
@@ -176,31 +177,29 @@ class DashboardViewModelTest {
                 viewModel(
                     settings = configuredSettings.copy(notificationsEnabled = true),
                     repository = repository,
-                    alertNotifier = notifier,
+                    notificationStateRepository = notificationStateRepository,
+                    notificationMessageDispatcher = dispatcher,
                 )
             runCurrent()
 
-            assertTrue(notifier.alerts.isEmpty())
-
-            viewModel.refresh()
-            runCurrent()
-
-            assertEquals(1, notifier.alerts.size)
-            assertEquals(AirQualityAlertKind.CO2, notifier.alerts.single().kind)
+            assertEquals(1, dispatcher.messages.size)
+            assertEquals(NotificationType.AirQualityDegraded, dispatcher.messages.single().type)
+            assertEquals("co2", notificationStateRepository.state.lastDominantMetricKey)
             viewModel.viewModelScope.cancel()
         }
 
     private fun viewModel(
         settings: AppSettings = AppSettings.default,
         repository: FakeAirGradientRepository,
-        alertNotifier: AirQualityAlertNotifier = RecordingAirQualityAlertNotifier(),
+        notificationStateRepository: NotificationStateRepository = FakeNotificationStateRepository(),
+        notificationMessageDispatcher: NotificationMessageDispatcher = RecordingNotificationMessageDispatcher(),
     ): DashboardViewModel {
         val dispatcher = mainDispatcherRule.dispatcher
         return DashboardViewModel(
             observeSettings = ObserveSettingsUseCase(FakeSettingsRepository(settings)),
             refreshDashboard = RefreshDashboardUseCase(GetCurrentMeasurementUseCase(repository)),
-            alertPolicy = AirQualityAlertPolicy(),
-            alertNotifier = alertNotifier,
+            notificationStateRepository = notificationStateRepository,
+            notificationMessageDispatcher = notificationMessageDispatcher,
             clockProvider = ClockProvider { Instant.parse("2026-06-16T00:00:00Z") },
             dispatchers =
                 AppDispatchers(
@@ -233,11 +232,32 @@ class DashboardViewModelTest {
         }
     }
 
-    private class RecordingAirQualityAlertNotifier : AirQualityAlertNotifier {
-        val alerts = mutableListOf<AirQualityAlert>()
+    private class FakeNotificationStateRepository : NotificationStateRepository {
+        var state: NotificationState = NotificationState.default
+            private set
 
-        override fun showAlert(alert: AirQualityAlert) {
-            alerts += alert
+        override fun observeNotificationState(): Flow<NotificationState> = MutableStateFlow(state)
+
+        override suspend fun getNotificationState(): NotificationState = state
+
+        override suspend fun saveNotificationState(state: NotificationState) {
+            this.state = state
+        }
+
+        override suspend fun updateNotificationState(transform: (NotificationState) -> NotificationState) {
+            state = transform(state)
+        }
+
+        override suspend fun clearNotificationState() {
+            state = NotificationState.default
+        }
+    }
+
+    private class RecordingNotificationMessageDispatcher : NotificationMessageDispatcher {
+        val messages = mutableListOf<NotificationMessage>()
+
+        override fun show(message: NotificationMessage) {
+            messages += message
         }
     }
 

@@ -5,6 +5,7 @@ import dev.worxbend.airgradient.domain.model.SensorStatus
 import java.time.Duration
 import java.time.Instant
 
+@Suppress("ReturnCount")
 class NotificationDecisionEngine {
     fun evaluateCondition(
         condition: AirQualityCondition,
@@ -57,7 +58,9 @@ class NotificationDecisionEngine {
                 key = DEVICE_UNREACHABLE_KEY,
                 severity = NotificationSeverity.Warning,
                 title = "AirGradient device is unreachable",
-                body = "The device has failed ${nextState.consecutiveFailureCount} checks. Last error: ${error.label()}.",
+                body =
+                    "The device has failed ${nextState.consecutiveFailureCount} checks. " +
+                        "Last error: ${error.label()}.",
             )
 
         return notifyUnlessCoolingDown(message = message, now = now, state = nextState, policy = policy)
@@ -247,7 +250,12 @@ class NotificationDecisionEngine {
     private fun AirQualityCondition.toMessage(
         type: NotificationType,
         severity: NotificationSeverity,
-        title: String = if (severity == NotificationSeverity.Critical) "Air quality is critical" else "Air quality degraded",
+        title: String =
+            if (severity == NotificationSeverity.Critical) {
+                "Air quality is critical"
+            } else {
+                "Air quality degraded"
+            },
     ): NotificationMessage {
         val metricLabel = dominantMetricLabel ?: "Overall air quality"
         return NotificationMessage(

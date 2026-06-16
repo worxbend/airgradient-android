@@ -17,6 +17,7 @@ import kotlinx.serialization.json.Json
 import java.io.IOException
 import java.time.Instant
 
+@Suppress("TooManyFunctions")
 class NotificationStateRepositoryImpl(
     private val dataStore: DataStore<Preferences>,
     private val json: Json = Json { ignoreUnknownKeys = true },
@@ -88,7 +89,10 @@ class NotificationStateRepositoryImpl(
     private fun String?.toSensorStatusOrNull(): SensorStatus? =
         this?.let { storedValue -> SensorStatus.entries.firstOrNull { it.name == storedValue } }
 
-    private fun String?.toInstantOrNull(): Instant? = this?.let { value -> runCatching { Instant.parse(value) }.getOrNull() }
+    private fun String?.toInstantOrNull(): Instant? =
+        this?.let { value ->
+            runCatching { Instant.parse(value) }.getOrNull()
+        }
 
     private fun <K, V, R : Any> Map<K, V>.mapNotNullValues(transform: (V) -> R?): Map<K, R> =
         mapNotNull { (key, value) ->

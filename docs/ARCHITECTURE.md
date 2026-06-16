@@ -50,6 +50,19 @@ Refreshes are guarded by a coroutine mutex so manual refresh and timer refresh c
 
 ## Notifications
 
-Notification rules live in pure Kotlin under `domain/notifications`. `AirQualityAlertPolicy` mirrors the reference behavior: sensor alerts require two consecutive degraded readings, device-offline alerts require three consecutive fetch failures, repeated alerts are cooled down for 20 minutes per kind, severity escalation bypasses cooldown, successful readings clear offline state, and recovery clears per-sensor consecutive state.
+Notification decision rules live in pure Kotlin under `domain/notifications`. `NotificationDecisionEngine` evaluates
+current air-quality condition, fetch failures, stale data, cooldowns, severity escalation, persistent degraded readings,
+and recovery confirmation against a persisted `NotificationState`.
 
-Android delivery is isolated in `data/notifications/AndroidAirQualityAlertNotifier`. It creates a single air-quality alert channel, checks `POST_NOTIFICATIONS` on Android 13+, and never sends when permission is missing. `DashboardViewModel` evaluates alerts only when settings enable notifications; disabling notifications clears policy state. Background polling is intentionally not implemented yet, so notifications are currently driven by foreground dashboard refreshes.
+`data/notifications/NotificationStateRepositoryImpl` stores notification decision state in a dedicated DataStore file so
+cooldown and recovery state survive process restart. `DashboardViewModel` now uses the same decision engine and state
+repository that the future foreground service and WorkManager worker will use. Disabling notifications or clearing the
+device URL clears the persisted decision state.
+
+Android delivery is isolated in `data/notifications/AndroidNotificationMessageDispatcher`. It creates the air-quality
+alert channel, checks `POST_NOTIFICATIONS` on Android 13+, uses deterministic notification IDs by message type/key, and
+never sends when permission is missing. The older `AirQualityAlertPolicy` remains in the codebase for the original
+reference-policy tests until it is removed in a dedicated cleanup.
+
+Background polling is intentionally not implemented yet, so notifications are still driven by foreground dashboard
+refreshes.

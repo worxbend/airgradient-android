@@ -7,3 +7,11 @@ interface AirQualityAlertNotifier {
 object NoOpAirQualityAlertNotifier : AirQualityAlertNotifier {
     override fun showAlert(alert: AirQualityAlert) = Unit
 }
+
+interface NotificationMessageDispatcher {
+    fun show(message: NotificationMessage)
+}
+
+object NoOpNotificationMessageDispatcher : NotificationMessageDispatcher {
+    override fun show(message: NotificationMessage) = Unit
+}

@@ -14,7 +14,7 @@ Current readings are kept in memory for dashboard display, trend comparison, and
 
 ## Data Stored On Device
 
-The app stores only user settings in Jetpack DataStore:
+The app stores user settings in Jetpack DataStore:
 
 ```text
 - normalized AirGradient device base URL
@@ -23,13 +23,28 @@ The app stores only user settings in Jetpack DataStore:
 - theme mode
 ```
 
-These settings stay on the device. Android cloud backup and device-transfer extraction rules exclude the AirGradient DataStore file:
+The app also stores notification decision state in a separate DataStore file:
+
+```text
+- last alert condition status
+- last dominant metric key
+- alert cooldown and recovery timestamps
+- consecutive fetch-failure count
+```
+
+This notification state lets cooldown and recovery behavior survive an app process restart. It does not include raw
+sensor readings.
+
+These files stay on the device. Android cloud backup and device-transfer extraction rules exclude both AirGradient
+DataStore files:
 
 ```text
 datastore/airgradient_settings.preferences_pb
+datastore/airgradient_notification_state.preferences_pb
 ```
 
-This avoids copying the local device address or notification preference into a backup account or to another device.
+This avoids copying the local device address, notification preference, or local alert history into a backup account or to
+another device.
 
 ## Network Behavior
 

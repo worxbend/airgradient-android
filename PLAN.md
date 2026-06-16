@@ -1246,6 +1246,86 @@ Validation passed:
 ./gradlew assembleRelease
 ```
 
+### Iteration 16 — Background Monitoring Capability Analysis
+
+Documented the existing app state before implementing always-on monitoring:
+
+```text
+- inspected current package structure, settings, repository, notification, dashboard, and manifest behavior
+- identified reusable foreground dashboard refresh, parser, settings, and notification components
+- documented missing foreground-service, WorkManager, monitoring settings, and persistent notification-state pieces
+- added the always-on monitoring behavior contract and migration path to this plan
+```
+
+### Iteration 17 — Monitoring Domain Model
+
+Implemented the first pure Kotlin monitoring domain slice:
+
+```text
+- MonitoringMode, MonitoringSettings, MonitoringPolicy, MonitoringPermissionState, MonitoringStatus, and MonitoringTickResult
+- foreground polling minimum of 30 seconds
+- periodic background minimum of 15 minutes
+- validation for configured device URL and Android notification permission requirements
+- unit tests for monitoring mode capabilities and monitoring policy validation
+```
+
+### Iteration 18 — Monitoring Settings Persistence
+
+Persisted monitoring-specific settings alongside existing app settings:
+
+```text
+- monitoring mode
+- foreground polling interval
+- battery-friendly periodic interval
+- persistent notification preference
+- repository APIs and DataStore mapping for monitoring settings
+- tests for default values, persistence, and interval validation
+```
+
+### Iteration 19 — Persistent Notification State
+
+Added restart-safe notification decision state:
+
+```text
+- NotificationState domain model
+- NotificationStateRepository contract
+- DataStore-backed NotificationStateRepositoryImpl
+- JSON encoding for per-key cooldown timestamps, active condition, recovery candidate, and fetch-failure count
+- tests for persistence, malformed state fallback, update transforms, and clearing state
+```
+
+### Iteration 20 — Smart Notification Decision Engine
+
+Implemented the shared notification decision engine for dashboard, future foreground service, and future worker use:
+
+```text
+- NotificationPolicy, NotificationType, NotificationSeverity, NotificationMessage, and NotificationDecision
+- AirQualityConditionFactory deriving overall status and dominant bad metric from snapshots
+- decisions for degraded, critical, persistent, recovered, device-unreachable, and stale-data notifications
+- cooldown, escalation bypass, dominant metric changes, recovery confirmation, and disabled-notification suppression
+- unit tests for decision behavior and cooldown rules
+```
+
+### Iteration 21 — Persisted Dashboard Notification Decisions
+
+Connected the foreground dashboard refresh path to the new persistent notification decision engine:
+
+```text
+- added NotificationMessageDispatcher domain contract and AndroidNotificationMessageDispatcher
+- DashboardViewModel now evaluates successful readings and fetch failures with NotificationDecisionEngine
+- dashboard notification cooldown/recovery state is saved through NotificationStateRepository
+- disabling notifications or clearing the configured device URL clears persisted notification decision state
+- Android cloud backup and device-transfer rules now also exclude notification decision state
+- README, architecture, development, and privacy docs document the persisted decision path
+```
+
+Behavior notes:
+
+```text
+- Background polling remains deferred; notifications are still triggered only by foreground dashboard refreshes.
+- The older AirQualityAlertPolicy remains for source-derived reference policy tests until a dedicated cleanup removes it.
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
