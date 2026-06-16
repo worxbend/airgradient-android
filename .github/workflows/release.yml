@@ -64,18 +64,8 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Decode keystore
+      - name: Build release APK
         env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          echo "${KEYSTORE_BASE64}" | base64 --decode > "${{ runner.temp }}/release.keystore"
-
-      - name: Build signed release APK
-        env:
-          KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           VERSION_CODE: ${{ steps.tag.outputs.version_code }}
           VERSION_NAME: ${{ steps.tag.outputs.version_name }}
         run: ./gradlew assembleRelease

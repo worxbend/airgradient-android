@@ -28,18 +28,6 @@ android {
         }
     }
 
-    val keystoreFile = System.getenv("KEYSTORE_FILE")
-    if (keystoreFile != null) {
-        signingConfigs {
-            create("release") {
-                storeFile = file(keystoreFile)
-                storePassword = System.getenv("STORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS")
-                keyPassword = System.getenv("KEY_PASSWORD")
-            }
-        }
-    }
-
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -47,9 +35,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            if (signingConfigs.findByName("release") != null) {
-                signingConfig = signingConfigs.getByName("release")
-            }
         }
     }
 
