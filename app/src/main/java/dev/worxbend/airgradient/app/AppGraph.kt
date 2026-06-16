@@ -43,6 +43,7 @@ import dev.worxbend.airgradient.service.AirQualityMonitoringServiceController
 import dev.worxbend.airgradient.service.AndroidMonitoringNotificationPermissionChecker
 import dev.worxbend.airgradient.service.AndroidMonitoringServiceGateway
 import dev.worxbend.airgradient.service.MonitoringLoopRunner
+import dev.worxbend.airgradient.service.MonitoringStartupReconciler
 import dev.worxbend.airgradient.service.PersistentStatusNotificationUpdater
 import dev.worxbend.airgradient.worker.AirQualityWorkerScheduler
 import dev.worxbend.airgradient.worker.BatteryFriendlyMonitoringCheckRunner
@@ -76,6 +77,11 @@ class AppGraph(
             permissionChecker = AndroidMonitoringNotificationPermissionChecker(appContext),
             serviceGateway = AndroidMonitoringServiceGateway(appContext),
             periodicScheduler = periodicMonitoringScheduler,
+        )
+    val monitoringStartupReconciler =
+        MonitoringStartupReconciler(
+            monitoringSettingsRepository = monitoringSettingsRepository,
+            monitoringServiceController = monitoringServiceController,
         )
 
     fun monitoringLoopRunner(): MonitoringLoopRunner =

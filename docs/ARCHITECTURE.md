@@ -89,6 +89,11 @@ validates that a device URL is configured and that Android 13+ notification perm
 foreground monitoring. Settings and dashboard UI routes request notification permission through the route layer, then
 their ViewModels call the controller instead of constructing service intents directly.
 
+`MonitoringStartupReconciler` runs from `MainActivity` when the app is opened. It reads the persisted monitoring mode
+and delegates restoration to `AirQualityMonitoringServiceController`: always-on mode restarts the foreground service,
+battery-friendly mode reschedules unique periodic WorkManager work, and rejected active modes are stopped through the
+same controller path so persisted UI state does not claim monitoring is active when runtime prerequisites are missing.
+
 `MonitoringLoopRunner` reuses `GetCurrentMeasurementUseCase`, `NotificationDecisionEngine`,
 `NotificationStateRepository`, and `NotificationMessageDispatcher`. It prevents overlapping checks with a mutex, clears
 notification decision state when alerts are disabled, persists cooldown/recovery state when alerts are enabled, and

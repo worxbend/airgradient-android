@@ -1631,6 +1631,26 @@ Implemented a focused foreground-service status correctness slice:
 - updated architecture docs to document the skipped-tick behavior
 ```
 
+### Iteration 35 — Monitoring Startup Reconciliation
+
+Implemented startup reconciliation for persisted background monitoring modes:
+
+```text
+- added MonitoringStartupReconciler as a small app-start bridge around the existing MonitoringServiceController
+- MainActivity now reconciles persisted monitoring mode when the app is opened
+- persisted always-on monitoring restarts the foreground service after app process restart
+- persisted battery-friendly monitoring reschedules unique periodic WorkManager work after app process restart
+- invalid persisted active monitoring state is stopped and persisted back to Off through the controller path
+- unit tests cover Off, always-on restore, battery-friendly restore, and rejected restore behavior
+```
+
+Behavior notes:
+
+```text
+- startup reconciliation reuses the existing controller validation and does not let Composables construct service intents
+- always-on restore still requires Android 13+ notification permission; if permission was revoked while the app was closed, monitoring is disabled instead of leaving the UI in an active-but-not-running state
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
