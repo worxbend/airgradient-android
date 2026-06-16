@@ -2411,3 +2411,440 @@ Required commands:
 ./gradlew ktlintCheck
 ./gradlew detekt
 ```
+
+## Existing Application Background Monitoring Analysis
+
+Phase 0 inspection was run from:
+
+```text
+/home/worxbend/Worxpace/airgradient-android
+```
+
+The working tree already contained an unrelated local modification to `AGENT_LOG.md`; this follow-up plan must not stage or rewrite that file.
+
+### Current Package Structure
+
+The Android app is a single-module project under `:app` with package `dev.worxbend.airgradient`.
+
+Current production packages:
+
+```text
+app/
+core/dispatchers/
+core/network/
+core/time/
+data/airgradient/
+data/airgradient/dto/
+data/airgradient/mapper/
+data/notifications/
+data/settings/
+domain/error/
+domain/model/
+domain/notifications/
+domain/repository/
+domain/sensors/
+domain/usecase/
+presentation/
+presentation/dashboard/
+presentation/dashboard/components/
+presentation/navigation/
+presentation/settings/
+presentation/settings/components/
+presentation/theme/
+```
+
+Current tests cover repository mapping/fetching, settings persistence, sensor thresholds, AQI fallback, trends, alert policy, dashboard ViewModel behavior, and settings ViewModel behavior.
+
+### Current Architecture Layers
+
+The app already follows a pragmatic MVVM and Clean Architecture split:
+
+```text
+presentation -> domain <- data
+```
+
+- `MainActivity` only creates Compose content and obtains `AppGraph`.
+- `AirGradientApplication` owns a lazy `AppGraph`.
+- `AppGraph` performs manual dependency wiring. Hilt versions exist in `gradle/libs.versions.toml`, but the app module does not currently apply Hilt.
+- Compose screens observe `StateFlow` through lifecycle-aware collection.
+- Domain logic is mostly Android-free and testable with JUnit.
+- Networking, parsing, settings persistence, threshold classification, and notification policy are outside Composables.
+
+This architecture can support background monitoring, but the service/worker entry points need reusable use cases and repositories instead of dashboard-owned polling.
+
+### Existing Notification Implementation
+
+Existing classes:
+
+```text
+domain/notifications/AirQualityAlert.kt
+domain/notifications/AirQualityAlertNotifier.kt
+domain/notifications/AirQualityAlertPolicy.kt
+data/notifications/AndroidAirQualityAlertNotifier.kt
+presentation/settings/SettingsRoute.kt
+```
+
+What exists:
+
+- `AirQualityAlertPolicy` evaluates degraded readings and fetch failures.
+- Sensor alerts require two consecutive degraded readings.
+- device-offline alerts require three consecutive fetch failures.
+- repeated alerts use a 20 minute cooldown.
+- severity escalation bypasses cooldown.
+- disabling notifications clears in-memory policy state.
+- `AndroidAirQualityAlertNotifier` creates one `air_quality_alerts` channel and checks `POST_NOTIFICATIONS` on Android 13+ before posting.
+- the settings route requests `android.permission.POST_NOTIFICATIONS` before enabling the alert toggle.
+
+Current limitation:
+
+- alert policy state is in memory only.
+- notification channels are not split by monitoring status, air quality, device status, and recovery.
+- there is no persistent foreground-service notification.
+- no notification action currently stops monitoring or triggers immediate refresh.
+- there is no persistent notification decision state for cooldown/recovery across process restarts.
+
+### Existing Settings Persistence
+
+Existing files:
+
+```text
+domain/model/AppSettings.kt
+domain/repository/SettingsRepository.kt
+data/settings/SettingsDataStore.kt
+data/settings/SettingsDataSource.kt
+data/settings/SettingsRepositoryImpl.kt
+domain/usecase/ObserveSettingsUseCase.kt
+domain/usecase/SaveDeviceUrlUseCase.kt
+domain/usecase/SaveRefreshIntervalUseCase.kt
+domain/usecase/SaveNotificationsEnabledUseCase.kt
+domain/usecase/SaveThemeModeUseCase.kt
+```
+
+What exists:
+
+- DataStore Preferences backs app settings.
+- stored fields are device URL, dashboard refresh interval, smart alert toggle, and theme mode.
+- device URLs are normalized before storage.
+- dashboard refresh interval is clamped to `5..3600` seconds.
+- notifications default to disabled.
+- theme defaults to system.
+
+Needed for monitoring:
+
+- add monitoring mode, foreground polling interval, periodic background interval, and persistent-notification preference.
+- keep monitoring-specific validation separate from dashboard refresh validation because always-on foreground polling has a 30 second minimum, while current dashboard refresh permits 5 seconds.
+- make mode changes start/stop/reschedule background work through use cases/controllers, not directly from Composables.
+- persist smart notification decision state separately from settings.
+
+### Existing AirGradient Repository And API
+
+Existing files:
+
+```text
+domain/repository/AirGradientRepository.kt
+domain/usecase/GetCurrentMeasurementUseCase.kt
+domain/usecase/RefreshDashboardUseCase.kt
+data/airgradient/AirGradientApi.kt
+data/airgradient/AirGradientApiFactory.kt
+data/airgradient/AirGradientRemoteDataSource.kt
+data/airgradient/AirGradientRepositoryImpl.kt
+data/airgradient/dto/AirGradientMeasureDto.kt
+data/airgradient/mapper/AirGradientMeasureMapper.kt
+core/network/NetworkModule.kt
+```
+
+What exists:
+
+- `AirGradientRepository.fetchCurrentMeasurement(serverUrl)` returns a typed `AirGradientFetchResult`.
+- missing and invalid device URLs are modeled as domain failures.
+- Retrofit fetches `/measures/current`.
+- mapper supports flexible local-server payload aliases and nested JSON lookup.
+- OkHttp currently uses an 8 second call/connect/read timeout.
+
+Needed for monitoring:
+
+- reuse `AirGradientRepository` for foreground service and WorkManager checks.
+- ensure fetch timeout stays lower than the selected foreground polling interval.
+- consider dedicated monitoring timeout constants if 30 second foreground checks require stricter failure bounds.
+
+### Existing Sensor Classification Logic
+
+Existing files:
+
+```text
+domain/sensors/AqiCalculator.kt
+domain/sensors/DeviceUrlNormalizer.kt
+domain/sensors/SensorMetricFactory.kt
+domain/sensors/SensorThresholds.kt
+domain/sensors/TrendCalculator.kt
+domain/model/SensorMetric.kt
+domain/model/SensorStatus.kt
+```
+
+What exists:
+
+- threshold classification is already pure Kotlin.
+- AQI fallback from PM2.5 is covered by tests.
+- sensor metric creation includes trend-aware display metrics.
+- `SensorThresholds.overallStatus(snapshot)` gives dashboard-level status.
+
+Needed for monitoring:
+
+- create a reusable air-quality condition model/factory for notification decisions.
+- avoid duplicating dashboard presentation formatting inside service or worker code.
+- keep status classification in domain, not in Android service classes.
+
+### Existing Dashboard ViewModel
+
+Existing file:
+
+```text
+presentation/dashboard/DashboardViewModel.kt
+```
+
+What exists:
+
+- observes settings.
+- when a device URL is configured, performs an initial refresh.
+- starts a `viewModelScope` auto-refresh loop using the stored dashboard interval.
+- prevents overlapping refreshes with a coroutine `Mutex`.
+- evaluates current `AirQualityAlertPolicy` after foreground dashboard refresh success/failure.
+
+Current limitation:
+
+- dashboard refresh is UI-lifecycle scoped, not process-independent monitoring.
+- `onCleared()` cancels the dashboard auto-refresh job.
+- minimized behavior is not guaranteed, and killed/closed app behavior is not supported.
+- dashboard currently owns alert evaluation for foreground refreshes; monitoring needs a shared decision engine.
+
+Needed for monitoring:
+
+- dashboard should show monitoring state and trigger start/stop use cases only.
+- dashboard should not own background checks.
+- alert evaluation should be moved or duplicated through a shared domain decision engine used by dashboard, foreground service, and worker.
+
+### Existing Compose Settings Screen
+
+Existing files:
+
+```text
+presentation/settings/SettingsRoute.kt
+presentation/settings/SettingsScreen.kt
+presentation/settings/SettingsUiState.kt
+presentation/settings/SettingsViewModel.kt
+presentation/settings/components/DeviceUrlInput.kt
+presentation/settings/components/RefreshIntervalSelector.kt
+presentation/settings/components/ThemeSelector.kt
+```
+
+What exists:
+
+- device URL configuration.
+- manual connection test.
+- dashboard refresh interval selector.
+- smart alert notifications toggle with Android 13 permission request.
+- theme selector.
+- permission denial is visible in settings UI.
+
+Needed for monitoring:
+
+- add monitoring mode controls.
+- add foreground and battery-friendly interval controls.
+- add explicit start/stop actions through ViewModel/use cases.
+- surface validation errors for missing device URL and missing notification permission.
+- keep service starts/stops outside Composables.
+
+### Dependency Injection Setup
+
+The app currently uses manual dependency wiring through:
+
+```text
+app/AppGraph.kt
+```
+
+Hilt plugin and library versions are present in `gradle/libs.versions.toml`, but `app/build.gradle.kts` does not apply Hilt and there are no `@Inject`, `@AndroidEntryPoint`, or Hilt modules in production code.
+
+Migration options:
+
+- prefer extending `AppGraph` for the first foreground-service implementation to minimize architecture churn.
+- if service, worker, notification dispatching, and repositories make manual wiring too complex, introduce Hilt deliberately in one phase and update app/module setup consistently.
+- do not mix partially configured Hilt annotations with manual factories.
+
+### Android Manifest And SDK Baseline
+
+Current `app/build.gradle.kts`:
+
+```text
+compileSdk = 36
+minSdk = 26
+targetSdk = 36
+versionCode = 1
+versionName = 0.1.0
+```
+
+Current manifest permissions:
+
+```text
+android.permission.ACCESS_NETWORK_STATE
+android.permission.INTERNET
+android.permission.POST_NOTIFICATIONS
+```
+
+Current manifest components:
+
+```text
+AirGradientApplication
+MainActivity
+```
+
+Needed for always-on monitoring:
+
+- add `android.permission.FOREGROUND_SERVICE`.
+- add `android.permission.FOREGROUND_SERVICE_DATA_SYNC` for API 34+ foreground-service type requirements.
+- declare `AirQualityMonitoringService` with `android:foregroundServiceType="dataSync"` unless a later implementation documents a more appropriate type.
+- add any receiver declarations needed for notification actions.
+
+### Existing WorkManager And Background Execution
+
+There is currently no WorkManager dependency, worker class, foreground service, lifecycle service, broadcast receiver, alarm manager, raw service intent gateway, `GlobalScope`, `Thread`, or `Timer` based background execution.
+
+Implications:
+
+- always-on 30 second polling must be a new foreground service feature.
+- WorkManager must be introduced only for battery-friendly periodic checks at 15 minutes or longer.
+- foreground-service and WorkManager paths must share domain decision logic and notification state to avoid inconsistent alerts.
+
+### What Can Be Reused
+
+- `AirGradientRepository` and its DTO mapper.
+- `DeviceUrlNormalizer` and settings device URL validation.
+- `SensorThresholds`, `SensorMetricFactory`, `AqiCalculator`, and `TrendCalculator`.
+- `AppDispatchers` and `ClockProvider` patterns.
+- DataStore Preferences infrastructure.
+- notification permission request pattern from `SettingsRoute`.
+- current tests as examples for repository, policy, ViewModel, and Compose UI coverage.
+
+### What Must Be Refactored Or Added
+
+- add `domain/monitoring` models and validation policy.
+- add monitoring settings persistence and repository APIs.
+- add persistent notification state storage.
+- replace or wrap `AirQualityAlertPolicy` with a persistent `NotificationDecisionEngine` that handles degradation, critical escalation, persistent bad conditions, recovery, unreachable device, stale data, cooldown, and deduplication.
+- split Android notification channel creation and notification dispatching into reusable classes.
+- add foreground service manifest support.
+- add a service controller as the only foreground-service start/stop gateway.
+- add a structured coroutine monitoring loop owned by the service.
+- add persistent notification actions for open app, refresh now, and stop monitoring.
+- integrate monitoring controls into settings.
+- integrate monitoring status into the dashboard.
+- add WorkManager only for battery-friendly periodic checks.
+- add focused unit tests and Android-facing tests around service/controller/worker behavior where practical.
+
+### Risks
+
+- Android 13+ notification permission is required before starting always-on monitoring because the foreground service must show a visible notification.
+- Android 14+ foreground-service type rules require correct manifest permission/type pairing.
+- 30 second network polling may increase battery usage and should be opt-in with persistent visibility.
+- foreground services can still be stopped by the system or user; persistent settings must reconcile actual service state on restart.
+- local AirGradient devices may be reachable only on the current Wi-Fi network; unreachable detection must avoid noisy alerts.
+- in-memory alert cooldown would spam after process restart unless notification state is persisted.
+- dashboard refresh interval and monitoring interval have different minimums and should not share one validation rule.
+- manual `AppGraph` may become large; introducing Hilt mid-feature should be a deliberate phase, not incidental churn.
+
+### Exact Files And Classes Expected To Change
+
+Likely existing files:
+
+```text
+PLAN.md
+README.md
+docs/ARCHITECTURE.md
+docs/DEVELOPMENT.md
+app/build.gradle.kts
+gradle/libs.versions.toml
+app/src/main/AndroidManifest.xml
+app/src/main/java/dev/worxbend/airgradient/AirGradientApplication.kt
+app/src/main/java/dev/worxbend/airgradient/app/AppGraph.kt
+app/src/main/java/dev/worxbend/airgradient/core/network/NetworkModule.kt
+app/src/main/java/dev/worxbend/airgradient/data/settings/SettingsDataSource.kt
+app/src/main/java/dev/worxbend/airgradient/data/settings/SettingsRepositoryImpl.kt
+app/src/main/java/dev/worxbend/airgradient/domain/model/AppSettings.kt
+app/src/main/java/dev/worxbend/airgradient/domain/repository/SettingsRepository.kt
+app/src/main/java/dev/worxbend/airgradient/domain/notifications/AirQualityAlertPolicy.kt
+app/src/main/java/dev/worxbend/airgradient/data/notifications/AndroidAirQualityAlertNotifier.kt
+app/src/main/java/dev/worxbend/airgradient/presentation/dashboard/DashboardScreen.kt
+app/src/main/java/dev/worxbend/airgradient/presentation/dashboard/DashboardUiState.kt
+app/src/main/java/dev/worxbend/airgradient/presentation/dashboard/DashboardViewModel.kt
+app/src/main/java/dev/worxbend/airgradient/presentation/settings/SettingsRoute.kt
+app/src/main/java/dev/worxbend/airgradient/presentation/settings/SettingsScreen.kt
+app/src/main/java/dev/worxbend/airgradient/presentation/settings/SettingsUiState.kt
+app/src/main/java/dev/worxbend/airgradient/presentation/settings/SettingsViewModel.kt
+```
+
+Likely new production files:
+
+```text
+app/src/main/java/dev/worxbend/airgradient/domain/monitoring/MonitoringMode.kt
+app/src/main/java/dev/worxbend/airgradient/domain/monitoring/MonitoringPolicy.kt
+app/src/main/java/dev/worxbend/airgradient/domain/monitoring/MonitoringStatus.kt
+app/src/main/java/dev/worxbend/airgradient/domain/monitoring/MonitoringTickResult.kt
+app/src/main/java/dev/worxbend/airgradient/domain/monitoring/MonitoringPermissionState.kt
+app/src/main/java/dev/worxbend/airgradient/domain/monitoring/MonitoringSettings.kt
+app/src/main/java/dev/worxbend/airgradient/domain/repository/MonitoringSettingsRepository.kt
+app/src/main/java/dev/worxbend/airgradient/domain/notifications/NotificationDecisionEngine.kt
+app/src/main/java/dev/worxbend/airgradient/domain/notifications/NotificationPolicy.kt
+app/src/main/java/dev/worxbend/airgradient/domain/notifications/NotificationDecision.kt
+app/src/main/java/dev/worxbend/airgradient/domain/notifications/NotificationState.kt
+app/src/main/java/dev/worxbend/airgradient/domain/notifications/NotificationType.kt
+app/src/main/java/dev/worxbend/airgradient/domain/notifications/AirQualityConditionFactory.kt
+app/src/main/java/dev/worxbend/airgradient/data/notifications/NotificationStateRepositoryImpl.kt
+app/src/main/java/dev/worxbend/airgradient/presentation/notification/NotificationChannelFactory.kt
+app/src/main/java/dev/worxbend/airgradient/presentation/notification/AndroidNotificationDispatcher.kt
+app/src/main/java/dev/worxbend/airgradient/presentation/monitoring/MonitoringPermissionController.kt
+app/src/main/java/dev/worxbend/airgradient/service/AirQualityMonitoringService.kt
+app/src/main/java/dev/worxbend/airgradient/service/AirQualityMonitoringServiceController.kt
+app/src/main/java/dev/worxbend/airgradient/service/AirQualityMonitoringNotificationFactory.kt
+app/src/main/java/dev/worxbend/airgradient/service/PersistentStatusNotificationUpdater.kt
+app/src/main/java/dev/worxbend/airgradient/service/MonitoringLoopRunner.kt
+app/src/main/java/dev/worxbend/airgradient/service/MonitoringActionReceiver.kt
+app/src/main/java/dev/worxbend/airgradient/worker/AirQualityCheckWorker.kt
+app/src/main/java/dev/worxbend/airgradient/worker/AirQualityWorkerScheduler.kt
+```
+
+Likely new docs:
+
+```text
+docs/BACKGROUND_MONITORING.md
+docs/NOTIFICATIONS.md
+```
+
+Likely new tests:
+
+```text
+app/src/test/java/dev/worxbend/airgradient/domain/monitoring/MonitoringPolicyTest.kt
+app/src/test/java/dev/worxbend/airgradient/domain/monitoring/MonitoringModeTest.kt
+app/src/test/java/dev/worxbend/airgradient/data/settings/MonitoringSettingsRepositoryTest.kt
+app/src/test/java/dev/worxbend/airgradient/domain/notifications/NotificationDecisionEngineTest.kt
+app/src/test/java/dev/worxbend/airgradient/domain/notifications/NotificationCooldownTest.kt
+app/src/test/java/dev/worxbend/airgradient/domain/notifications/AirQualityConditionFactoryTest.kt
+app/src/test/java/dev/worxbend/airgradient/service/MonitoringLoopRunnerTest.kt
+app/src/test/java/dev/worxbend/airgradient/service/AirQualityMonitoringNotificationFactoryTest.kt
+app/src/test/java/dev/worxbend/airgradient/service/PersistentStatusNotificationUpdaterTest.kt
+app/src/test/java/dev/worxbend/airgradient/service/AirQualityMonitoringServiceControllerTest.kt
+app/src/test/java/dev/worxbend/airgradient/worker/AirQualityCheckWorkerTest.kt
+```
+
+### Migration Path
+
+1. Add monitoring domain models and validation without Android dependencies.
+2. Extend DataStore-backed settings persistence with monitoring fields.
+3. Introduce persistent notification state before service polling to avoid restart spam.
+4. Build a domain notification decision engine that can be called by dashboard, foreground service, and WorkManager.
+5. Split Android notification infrastructure into channels, dispatcher, persistent status factory/updater, and alert dispatching.
+6. Add manifest permissions and foreground-service declaration.
+7. Add a service controller and keep raw service intents out of ViewModels and Composables.
+8. Add the foreground-service monitoring loop with structured concurrency and no overlapping ticks.
+9. Add notification actions for stop and refresh-now.
+10. Integrate monitoring controls in settings and monitoring status in dashboard.
+11. Add WorkManager only after the foreground-service path is working, and keep it limited to 15 minute or longer battery-friendly checks.
+12. Update README and docs once behavior is implemented and validated.
