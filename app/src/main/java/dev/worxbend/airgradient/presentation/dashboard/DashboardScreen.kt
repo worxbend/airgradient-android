@@ -7,12 +7,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -130,14 +134,20 @@ private fun DashboardScaffold(
                     }
                 },
                 actions = {
-                    TextButton(
+                    IconButton(
                         onClick = onRefresh,
                         enabled = canRefresh,
                     ) {
-                        Text(text = "Refresh")
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = REFRESH_ACTION_DESCRIPTION,
+                        )
                     }
-                    TextButton(onClick = onOpenSettings) {
-                        Text(text = "Settings")
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(
+                            imageVector = Icons.Rounded.Settings,
+                            contentDescription = SETTINGS_ACTION_DESCRIPTION,
+                        )
                     }
                 },
                 colors =
@@ -219,3 +229,6 @@ private fun backgroundBrush(): Brush =
                 MaterialTheme.colorScheme.secondary.copy(alpha = 0.05f),
             ),
     )
+
+internal const val REFRESH_ACTION_DESCRIPTION = "Refresh measurements"
+internal const val SETTINGS_ACTION_DESCRIPTION = "Open settings"

@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -41,7 +42,8 @@ class DashboardScreenTest {
         }
 
         composeRule.onNodeWithText("Configure a local AirGradient device").assertIsDisplayed()
-        composeRule.onNodeWithText("Refresh").assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription(REFRESH_ACTION_DESCRIPTION).assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription(SETTINGS_ACTION_DESCRIPTION).assertIsDisplayed()
 
         composeRule.onNodeWithText("Configure device").performClick()
         composeRule.runOnIdle {
@@ -69,7 +71,7 @@ class DashboardScreenTest {
         composeRule.onAllNodesWithText("Good")[0].assertIsDisplayed()
         composeRule.onNodeWithText("Latest measurements loaded.").assertIsDisplayed()
         composeRule.onNodeWithText("30s").assertIsDisplayed()
-        composeRule.onNodeWithText("Refresh").assertIsEnabled().performClick()
+        composeRule.onNodeWithContentDescription(REFRESH_ACTION_DESCRIPTION).assertIsEnabled().performClick()
 
         composeRule.runOnIdle {
             check(refreshClicks.get() == 1)
@@ -105,7 +107,8 @@ class DashboardScreenTest {
 
         composeRule.onNodeWithText("Connection timed out").assertIsDisplayed()
         composeRule.onNodeWithText("Retry").performClick()
-        composeRule.onAllNodesWithText("Settings")[1].performClick()
+        composeRule.onNodeWithContentDescription(SETTINGS_ACTION_DESCRIPTION).assertIsDisplayed()
+        composeRule.onAllNodesWithText("Settings")[0].performClick()
 
         composeRule.runOnIdle {
             check(retryClicks.get() == 1)

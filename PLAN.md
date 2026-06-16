@@ -1225,6 +1225,27 @@ Behavior notes:
 - Backup exclusion deliberately covers the whole AirGradient settings DataStore rather than individual keys because DataStore stores preferences in a single protobuf file.
 ```
 
+### Iteration 15 — Dashboard App-Bar Accessibility Polish
+
+Implemented a focused dashboard interaction polish slice:
+
+```text
+- replaced text-based dashboard app-bar actions with Material icon buttons for refresh and settings
+- added explicit accessibility content descriptions for the app-bar refresh and settings actions
+- kept refresh disabled for unconfigured and initial-loading states while preserving pull-to-refresh behavior for configured states
+- updated Compose UI tests to assert the icon actions by content description
+- added the Compose Material Icons dependency through the existing version catalog
+```
+
+Validation passed:
+
+```bash
+./gradlew ktlintCheck assembleDebugAndroidTest
+./gradlew test ktlintCheck detekt lint
+./gradlew clean build
+./gradlew assembleRelease
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
