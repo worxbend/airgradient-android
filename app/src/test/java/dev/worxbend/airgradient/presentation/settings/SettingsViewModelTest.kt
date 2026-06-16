@@ -8,16 +8,20 @@ import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
+import dev.worxbend.airgradient.domain.monitoring.MonitoringRuntimeState
 import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
+import dev.worxbend.airgradient.domain.monitoring.MonitoringTickResult
 import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
 import dev.worxbend.airgradient.domain.repository.AirGradientRepository
+import dev.worxbend.airgradient.domain.repository.MonitoringRuntimeStateRepository
 import dev.worxbend.airgradient.domain.repository.MonitoringSettingsRepository
 import dev.worxbend.airgradient.domain.repository.SaveDeviceUrlResult
 import dev.worxbend.airgradient.domain.repository.SettingsRepository
 import dev.worxbend.airgradient.domain.sensors.DeviceUrlNormalizationResult
 import dev.worxbend.airgradient.domain.sensors.DeviceUrlNormalizer
 import dev.worxbend.airgradient.domain.usecase.GetCurrentMeasurementUseCase
+import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringRuntimeStateUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveDeviceUrlUseCase
@@ -239,6 +243,36 @@ class SettingsViewModelTest {
         }
 
     @Test
+    fun `loads monitoring runtime diagnostics into form state`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val runtimeRepository =
+                FakeMonitoringRuntimeStateRepository(
+                    MonitoringRuntimeState(
+                        lastCheckedAt = Instant.parse("2026-06-16T12:00:00Z"),
+                        lastSuccessfulCheckAt = Instant.parse("2026-06-16T11:45:00Z"),
+                        lastSuccessfulMeasurementAt = Instant.parse("2026-06-16T11:44:58Z"),
+                        lastFailureAt = Instant.parse("2026-06-16T12:00:00Z"),
+                        consecutiveFailureCount = 2,
+                    ),
+                )
+            val viewModel = viewModel(monitoringRuntimeStateRepository = runtimeRepository)
+            runCurrent()
+
+            val state = viewModel.uiState.value
+            assertEquals(
+                "Last background check 2026-06-16T12:00:00Z",
+                state.monitoringDiagnostics.lastBackgroundCheckLabel,
+            )
+            assertEquals(
+                "Last successful reading 2026-06-16T11:44:58Z",
+                state.monitoringDiagnostics.lastSuccessfulReadLabel,
+            )
+            assertEquals("Last failed check 2026-06-16T12:00:00Z", state.monitoringDiagnostics.lastFailureLabel)
+            assertEquals(2, state.monitoringDiagnostics.consecutiveFailureCount)
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
     fun `foreground polling interval selection persists supported value`() =
         runTest(mainDispatcherRule.dispatcher) {
             val monitoringRepository = FakeMonitoringSettingsRepository()
@@ -339,6 +373,8 @@ class SettingsViewModelTest {
     private fun viewModel(
         settingsRepository: FakeSettingsRepository = FakeSettingsRepository(),
         monitoringSettingsRepository: FakeMonitoringSettingsRepository = FakeMonitoringSettingsRepository(),
+        monitoringRuntimeStateRepository: FakeMonitoringRuntimeStateRepository =
+            FakeMonitoringRuntimeStateRepository(),
         airGradientRepository: FakeAirGradientRepository = FakeAirGradientRepository(),
         monitoringServiceController: FakeMonitoringServiceController = FakeMonitoringServiceController(),
     ): SettingsViewModel {
@@ -350,6 +386,8 @@ class SettingsViewModelTest {
                 SettingsUseCases(
                     observeSettings = ObserveSettingsUseCase(settingsRepository),
                     observeMonitoringSettings = ObserveMonitoringSettingsUseCase(monitoringSettingsRepository),
+                    observeMonitoringRuntimeState =
+                        ObserveMonitoringRuntimeStateUseCase(monitoringRuntimeStateRepository),
                     saveDeviceUrl = SaveDeviceUrlUseCase(settingsRepository),
                     saveRefreshInterval = SaveRefreshIntervalUseCase(settingsRepository),
                     saveForegroundPollingInterval =
@@ -446,6 +484,22 @@ class SettingsViewModelTest {
                     periodicBackgroundIntervalMinutes =
                         MonitoringSettings.requireSupportedPeriodicInterval(interval),
                 )
+        }
+    }
+
+    private class FakeMonitoringRuntimeStateRepository(
+        initialState: MonitoringRuntimeState = MonitoringRuntimeState.default,
+    ) : MonitoringRuntimeStateRepository {
+        val state = MutableStateFlow(initialState)
+
+        override fun observeMonitoringRuntimeState(): Flow<MonitoringRuntimeState> = state
+
+        override suspend fun getMonitoringRuntimeState(): MonitoringRuntimeState = state.value
+
+        override suspend fun recordTickResult(result: MonitoringTickResult) = Unit
+
+        override suspend fun clearMonitoringRuntimeState() {
+            state.value = MonitoringRuntimeState.default
         }
     }
 

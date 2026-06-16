@@ -103,6 +103,11 @@ The dashboard observes `MonitoringSettings` and `MonitoringRuntimeState`, then r
 the current mode, configured interval, last background check, last successful background reading, and quick start/stop
 actions.
 
+Settings also observes `MonitoringRuntimeState` through `ObserveMonitoringRuntimeStateUseCase` and shows the same
+operational diagnostics in the Monitoring section, including last completed background check, last successful
+background reading, last failed check, and consecutive failure count. This keeps diagnostics read-only in presentation
+state; the settings screen still does not trigger background checks directly.
+
 ## Battery-Friendly Monitoring
 
 Battery-friendly monitoring is scheduled by `worker/AirQualityWorkerScheduler` as unique periodic WorkManager work with

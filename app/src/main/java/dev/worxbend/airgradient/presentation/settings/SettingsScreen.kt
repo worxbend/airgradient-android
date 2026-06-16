@@ -158,6 +158,7 @@ private fun SettingsContent(
                     mode = state.monitoringMode,
                     foregroundPollingIntervalSeconds = state.foregroundPollingIntervalSeconds,
                     periodicBackgroundIntervalMinutes = state.periodicBackgroundIntervalMinutes,
+                    diagnostics = state.monitoringDiagnostics,
                     actionState = state.monitoringActionState,
                     actions =
                         MonitoringControlActions(

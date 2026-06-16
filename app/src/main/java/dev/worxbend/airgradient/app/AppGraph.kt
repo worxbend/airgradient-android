@@ -136,6 +136,8 @@ class AppGraph(
                         observeSettings = ObserveSettingsUseCase(settingsRepository),
                         observeMonitoringSettings =
                             ObserveMonitoringSettingsUseCase(monitoringSettingsRepository),
+                        observeMonitoringRuntimeState =
+                            ObserveMonitoringRuntimeStateUseCase(monitoringRuntimeStateRepository),
                         saveDeviceUrl = SaveDeviceUrlUseCase(settingsRepository),
                         saveRefreshInterval = SaveRefreshIntervalUseCase(settingsRepository),
                         saveForegroundPollingInterval =

@@ -1662,6 +1662,19 @@ Implemented a focused dashboard monitoring control correction:
 - README clarifies that the dashboard monitoring card can stop any active monitoring mode
 ```
 
+### Iteration 37 — Settings Monitoring Diagnostics
+
+Implemented Settings visibility for persisted monitoring runtime diagnostics:
+
+```text
+- SettingsViewModel now observes MonitoringRuntimeState alongside app and monitoring settings
+- the Monitoring section shows last completed background check, last successful background reading, last failed check, and consecutive failed checks when available
+- empty monitoring runtime state renders explicit no-background-checks copy
+- AppGraph wires ObserveMonitoringRuntimeStateUseCase into SettingsUseCases
+- unit and Compose UI tests cover diagnostics state mapping and visible Settings copy
+- README and architecture docs document the shared dashboard/settings runtime diagnostics path
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

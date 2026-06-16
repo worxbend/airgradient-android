@@ -1,5 +1,6 @@
 package dev.worxbend.airgradient.presentation.settings
 
+import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringRuntimeStateUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveDeviceUrlUseCase
@@ -16,6 +17,7 @@ import dev.worxbend.airgradient.domain.usecase.TestDeviceConnectionUseCase
 data class SettingsUseCases(
     val observeSettings: ObserveSettingsUseCase,
     val observeMonitoringSettings: ObserveMonitoringSettingsUseCase,
+    val observeMonitoringRuntimeState: ObserveMonitoringRuntimeStateUseCase,
     val saveDeviceUrl: SaveDeviceUrlUseCase,
     val saveRefreshInterval: SaveRefreshIntervalUseCase,
     val saveForegroundPollingInterval: SaveForegroundPollingIntervalUseCase,

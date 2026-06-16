@@ -1,8 +1,27 @@
 package dev.worxbend.airgradient.presentation.settings
 
 import dev.worxbend.airgradient.domain.error.AirGradientError
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 
 internal object SettingsPresentationFormatter {
+    private val instantFormatter = DateTimeFormatter.ISO_INSTANT
+
+    fun lastBackgroundCheckLabel(checkedAt: Instant): String {
+        val formattedInstant = instantFormatter.format(checkedAt)
+        return "Last background check $formattedInstant"
+    }
+
+    fun lastSuccessfulBackgroundReadLabel(readAt: Instant): String {
+        val formattedInstant = instantFormatter.format(readAt)
+        return "Last successful reading $formattedInstant"
+    }
+
+    fun lastBackgroundFailureLabel(failedAt: Instant): String {
+        val formattedInstant = instantFormatter.format(failedAt)
+        return "Last failed check $formattedInstant"
+    }
+
     fun connectionFailureMessage(error: AirGradientError): String =
         when (error) {
             AirGradientError.MissingDeviceUrl,

@@ -267,6 +267,45 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun monitoringDiagnosticsShowRuntimeLabels() {
+        composeRule.setContent {
+            AirGradientTheme(dynamicColor = false) {
+                SettingsScreen(
+                    state =
+                        SettingsUiState(
+                            monitoringDiagnostics =
+                                SettingsMonitoringDiagnostics(
+                                    lastBackgroundCheckLabel =
+                                        "Last background check 2026-06-16T12:00:00Z",
+                                    lastSuccessfulReadLabel =
+                                        "Last successful reading 2026-06-16T11:44:58Z",
+                                    lastFailureLabel = "Last failed check 2026-06-16T12:00:00Z",
+                                    consecutiveFailureCount = 2,
+                                ),
+                        ),
+                    onNavigateBack = {},
+                    actions = actions(),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Monitoring").performScrollTo()
+        composeRule.onNodeWithText("Diagnostics").assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Last background check 2026-06-16T12:00:00Z")
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Last successful reading 2026-06-16T11:44:58Z")
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Last failed check 2026-06-16T12:00:00Z")
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Consecutive failed checks: 2")
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun connectionFailureStateShowsMappedErrorMessage() {
         composeRule.setContent {
             AirGradientTheme(dynamicColor = false) {

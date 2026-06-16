@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
 import dev.worxbend.airgradient.presentation.settings.MonitoringActionState
+import dev.worxbend.airgradient.presentation.settings.SettingsMonitoringDiagnostics
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
@@ -27,6 +28,7 @@ fun MonitoringControls(
     mode: MonitoringMode,
     foregroundPollingIntervalSeconds: Int,
     periodicBackgroundIntervalMinutes: Int,
+    diagnostics: SettingsMonitoringDiagnostics,
     actionState: MonitoringActionState,
     actions: MonitoringControlActions,
     modifier: Modifier = Modifier,
@@ -67,6 +69,7 @@ fun MonitoringControls(
             valueLabel = Int::toMinutesIntervalLabel,
         )
         MonitoringActionMessage(actionState = actionState)
+        MonitoringDiagnostics(diagnostics = diagnostics)
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -186,6 +189,38 @@ private fun MonitoringActionMessage(actionState: MonitoringActionState) {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
         )
+    }
+}
+
+@Composable
+private fun MonitoringDiagnostics(diagnostics: SettingsMonitoringDiagnostics) {
+    val labels =
+        buildList {
+            if (diagnostics.lastBackgroundCheckLabel == null) {
+                add("No background checks recorded yet.")
+            } else {
+                add(diagnostics.lastBackgroundCheckLabel)
+            }
+            diagnostics.lastSuccessfulReadLabel?.let(::add)
+            diagnostics.lastFailureLabel?.let(::add)
+            if (diagnostics.consecutiveFailureCount > 0) {
+                add("Consecutive failed checks: ${diagnostics.consecutiveFailureCount}")
+            }
+        }
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = "Diagnostics",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        labels.forEach { label ->
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

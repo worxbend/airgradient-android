@@ -23,9 +23,17 @@ data class SettingsUiState(
         MonitoringSettings.DEFAULT_FOREGROUND_POLLING_INTERVAL_SECONDS,
     val periodicBackgroundIntervalMinutes: Int =
         MonitoringSettings.DEFAULT_PERIODIC_BACKGROUND_INTERVAL_MINUTES,
+    val monitoringDiagnostics: SettingsMonitoringDiagnostics = SettingsMonitoringDiagnostics(),
     val monitoringActionState: MonitoringActionState = MonitoringActionState.Idle,
     val saveState: DeviceUrlSaveState = DeviceUrlSaveState.Idle,
     val connectionTestState: ConnectionTestState = ConnectionTestState.Idle,
+)
+
+data class SettingsMonitoringDiagnostics(
+    val lastBackgroundCheckLabel: String? = null,
+    val lastSuccessfulReadLabel: String? = null,
+    val lastFailureLabel: String? = null,
+    val consecutiveFailureCount: Int = 0,
 )
 
 sealed interface MonitoringActionState {

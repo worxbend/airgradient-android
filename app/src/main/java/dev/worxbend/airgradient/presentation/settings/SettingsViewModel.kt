@@ -7,6 +7,7 @@ import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
+import dev.worxbend.airgradient.domain.monitoring.MonitoringRuntimeState
 import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
 import dev.worxbend.airgradient.domain.notifications.NotificationSeverity
 import dev.worxbend.airgradient.domain.repository.SaveDeviceUrlResult
@@ -41,6 +42,11 @@ class SettingsViewModel(
         viewModelScope.launch(dispatchers.io) {
             useCases.observeMonitoringSettings().collect { settings ->
                 _uiState.update { state -> state.applyMonitoringSettings(settings) }
+            }
+        }
+        viewModelScope.launch(dispatchers.io) {
+            useCases.observeMonitoringRuntimeState().collect { runtimeState ->
+                _uiState.update { state -> state.applyMonitoringRuntimeState(runtimeState) }
             }
         }
     }
@@ -278,6 +284,21 @@ private fun SettingsUiState.applyMonitoringSettings(settings: MonitoringSettings
             } else {
                 monitoringActionState
             },
+    )
+
+private fun SettingsUiState.applyMonitoringRuntimeState(runtimeState: MonitoringRuntimeState): SettingsUiState =
+    copy(
+        monitoringDiagnostics =
+            SettingsMonitoringDiagnostics(
+                lastBackgroundCheckLabel =
+                    runtimeState.lastCheckedAt?.let(SettingsPresentationFormatter::lastBackgroundCheckLabel),
+                lastSuccessfulReadLabel =
+                    runtimeState.lastSuccessfulMeasurementAt
+                        ?.let(SettingsPresentationFormatter::lastSuccessfulBackgroundReadLabel),
+                lastFailureLabel =
+                    runtimeState.lastFailureAt?.let(SettingsPresentationFormatter::lastBackgroundFailureLabel),
+                consecutiveFailureCount = runtimeState.consecutiveFailureCount,
+            ),
     )
 
 private fun String?.toDeviceUrlPreview(): DeviceUrlPreview =
