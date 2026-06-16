@@ -38,11 +38,12 @@ class NotificationDecisionEngineTest {
 
     @Test
     fun `second consecutive warning sends degraded alert`() {
-        val firstSuppressed = engine.evaluateCondition(
-            condition = warningCondition(),
-            state = NotificationState.default,
-            policy = NotificationPolicy.default,
-        )
+        val firstSuppressed =
+            engine.evaluateCondition(
+                condition = warningCondition(),
+                state = NotificationState.default,
+                policy = NotificationPolicy.default,
+            )
 
         val secondDecision =
             engine.evaluateCondition(
@@ -221,43 +222,48 @@ class NotificationDecisionEngineTest {
     @Test
     fun `recovery resets consecutive count requiring two bad readings again`() {
         // Use a short cooldown so re-alert after recovery is not blocked by the initial-alert cooldown.
-        val policy = NotificationPolicy.default.copy(
-            consecutiveBadReadingsBeforeAlert = 2,
-            cooldown = Duration.ofSeconds(10),
-        )
+        val policy =
+            NotificationPolicy.default.copy(
+                consecutiveBadReadingsBeforeAlert = 2,
+                cooldown = Duration.ofSeconds(10),
+            )
 
         // Two bad readings to send the initial alert
         val suppressed = engine.evaluateCondition(warningCondition(), NotificationState.default, policy)
-        val warningDecision = engine.evaluateCondition(
-            warningCondition(at = now.plusSeconds(5)),
-            suppressed.nextState,
-            policy,
-        ) as NotificationDecision.Notify
+        val warningDecision =
+            engine.evaluateCondition(
+                warningCondition(at = now.plusSeconds(5)),
+                suppressed.nextState,
+                policy,
+            ) as NotificationDecision.Notify
 
         // Recovery after confirmation window (cooldown expired)
-        val recovery = engine.evaluateCondition(
-            goodCondition(at = now.plusSeconds(75)),
-            warningDecision.nextState,
-            policy,
-        )
+        val recovery =
+            engine.evaluateCondition(
+                goodCondition(at = now.plusSeconds(75)),
+                warningDecision.nextState,
+                policy,
+            )
 
         // Count is reset to 0 on recovery
         assertEquals(0, recovery.nextState.consecutiveBadReadingCount)
 
         // First bad reading again is suppressed
-        val newBad1 = engine.evaluateCondition(
-            warningCondition(at = now.plusSeconds(150)),
-            recovery.nextState,
-            policy,
-        )
+        val newBad1 =
+            engine.evaluateCondition(
+                warningCondition(at = now.plusSeconds(150)),
+                recovery.nextState,
+                policy,
+            )
         assertSuppresses(NotificationSuppressionReason.ConsecutiveBadReadingThresholdNotMet, newBad1)
 
         // Second bad reading alerts again (cooldown from initial alert has long expired)
-        val newBad2 = engine.evaluateCondition(
-            warningCondition(at = now.plusSeconds(155)),
-            newBad1.nextState,
-            policy,
-        )
+        val newBad2 =
+            engine.evaluateCondition(
+                warningCondition(at = now.plusSeconds(155)),
+                newBad1.nextState,
+                policy,
+            )
         assertTrue(newBad2 is NotificationDecision.Notify)
     }
 

@@ -227,12 +227,14 @@ class DashboardViewModelTest {
         runTest(mainDispatcherRule.dispatcher) {
             val notificationStateRepository = FakeNotificationStateRepository()
             val dispatcher = RecordingNotificationMessageDispatcher()
+            val degradedSnapshot = firstSnapshot.copy(co2 = 1_300.0)
             val repository =
                 FakeAirGradientRepository(
                     results =
                         ArrayDeque(
                             listOf(
-                                AirGradientFetchResult.Success(firstSnapshot.copy(co2 = 1_300.0)),
+                                AirGradientFetchResult.Success(degradedSnapshot),
+                                AirGradientFetchResult.Success(degradedSnapshot),
                             ),
                         ),
                 )
@@ -243,12 +245,18 @@ class DashboardViewModelTest {
                     notificationStateRepository = notificationStateRepository,
                     notificationMessageDispatcher = dispatcher,
                 )
-            runCurrent()
+            try {
+                runCurrent()
 
-            assertEquals(1, dispatcher.messages.size)
-            assertEquals(NotificationType.AirQualityDegraded, dispatcher.messages.single().type)
-            assertEquals("co2", notificationStateRepository.state.lastDominantMetricKey)
-            viewModel.viewModelScope.cancel()
+                viewModel.refresh()
+                runCurrent()
+
+                assertEquals(1, dispatcher.messages.size)
+                assertEquals(NotificationType.AirQualityDegraded, dispatcher.messages.single().type)
+                assertEquals("co2", notificationStateRepository.state.lastDominantMetricKey)
+            } finally {
+                viewModel.viewModelScope.cancel()
+            }
         }
 
     @Test

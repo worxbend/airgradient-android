@@ -61,10 +61,12 @@ class MonitoringLoopRunnerTest {
                     dispatcher = dispatcher,
                 )
 
-            val result = runner.runOneTick(settings(notificationsEnabled = true))
+            val firstResult = runner.runOneTick(settings(notificationsEnabled = true))
+            val secondResult = runner.runOneTick(settings(notificationsEnabled = true))
 
-            assertTrue(result is MonitoringTickResult.Success)
-            assertEquals(1, repository.calls)
+            assertTrue(firstResult is MonitoringTickResult.Success)
+            assertTrue(secondResult is MonitoringTickResult.Success)
+            assertEquals(2, repository.calls)
             assertEquals("pm25", stateRepository.state.lastDominantMetricKey)
             assertEquals(NotificationType.AirQualityCritical, dispatcher.messages.single().type)
         }
