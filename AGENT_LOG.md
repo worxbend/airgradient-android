@@ -71,3 +71,8 @@
 2026-06-16T00:43:10Z iteration 13 started remaining=11598s
 2026-06-16T00:45:00Z iteration 13 implemented Android CI workflow, portable JDK configuration, and CI documentation
 2026-06-16T00:45:47Z iteration 13 validation passed commands="./gradlew test ktlintCheck detekt lint" "./gradlew assembleDebugAndroidTest" "./gradlew assembleRelease" "./gradlew clean build"
+2026-06-16T00:46:52Z iteration 13 no changes to commit
+2026-06-16T00:46:52Z iteration 13 completed validation_status=0
+2026-06-16T00:46:52Z iteration 14 started remaining=11375s
+2026-06-16T00:47:30Z iteration 14 implemented privacy and backup hardening by excluding AirGradient DataStore settings from Android cloud backup/device transfer and documenting local-only privacy behavior
+2026-06-16T00:48:39Z iteration 14 validation passed commands="./gradlew test ktlintCheck detekt lint assembleDebugAndroidTest assembleRelease" "./gradlew clean build"

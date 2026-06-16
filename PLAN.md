@@ -1207,6 +1207,24 @@ Behavior notes:
 - CI runs validation steps separately from artifact-producing tasks to avoid the Gradle scheduling issue noted in earlier iterations when clean is queued alongside build outputs.
 ```
 
+### Iteration 14 — Privacy And Backup Hardening
+
+Implemented a focused privacy release-hardening slice:
+
+```text
+- Android Auto Backup and Android 12+ data extraction rules now exclude the AirGradient DataStore settings file
+- local device URL, refresh interval, notification setting, and theme mode are no longer eligible for cloud backup or device transfer
+- added docs/PRIVACY.md covering local-only network behavior, in-memory readings, stored settings, backup exclusions, and absence of telemetry/cloud integrations
+- README and development docs now summarize the privacy and backup behavior
+```
+
+Behavior notes:
+
+```text
+- Sensor readings remain in memory only; historical storage is still out of scope.
+- Backup exclusion deliberately covers the whole AirGradient settings DataStore rather than individual keys because DataStore stores preferences in a single protobuf file.
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

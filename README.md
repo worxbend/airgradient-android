@@ -43,3 +43,9 @@ The application will fetch AirGradient readings from:
 Most AirGradient local-server installs use plain HTTP on the local network. The Android manifest deliberately enables cleartext traffic so addresses such as `http://192.168.1.201` and bare inputs such as `192.168.1.201` work after normalization.
 
 Notifications are disabled by default. When enabled, Android 13+ devices request `POST_NOTIFICATIONS`; alerts are evaluated from foreground dashboard refreshes and follow the reference consecutive-reading and cooldown policy. Background polling remains deferred.
+
+## Privacy
+
+The app stores only local settings in DataStore and keeps current readings in memory. Historical sensor readings are not persisted, and no analytics, crash-reporting, cloud account, or remote proxy integration is configured.
+
+Android cloud backup and device-transfer rules exclude the AirGradient settings DataStore so the configured local device URL is not copied into a backup account or restored onto another device. See [docs/PRIVACY.md](docs/PRIVACY.md) for details.
