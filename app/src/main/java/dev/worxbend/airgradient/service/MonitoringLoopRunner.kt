@@ -96,11 +96,13 @@ class MonitoringLoopRunner(
         result: AirGradientFetchResult.Failure,
         checkedAt: Instant,
     ): MonitoringTickResult.Failure {
+        val consecutiveFailureCount = nextRuntimeFailureCount()
+
         if (!settings.notificationsEnabled) {
             notificationStateRepository.clearNotificationState()
             return MonitoringTickResult.Failure(
                 error = result.error,
-                consecutiveFailureCount = 0,
+                consecutiveFailureCount = consecutiveFailureCount,
                 checkedAt = checkedAt,
             )
         }
@@ -117,10 +119,13 @@ class MonitoringLoopRunner(
 
         return MonitoringTickResult.Failure(
             error = result.error,
-            consecutiveFailureCount = decision.nextState.consecutiveFailureCount,
+            consecutiveFailureCount = consecutiveFailureCount,
             checkedAt = checkedAt,
         )
     }
+
+    private suspend fun nextRuntimeFailureCount(): Int =
+        monitoringRuntimeStateRepository.getMonitoringRuntimeState().consecutiveFailureCount + 1
 
     private suspend fun persistAndDispatch(decision: NotificationDecision) {
         notificationStateRepository.saveNotificationState(decision.nextState)

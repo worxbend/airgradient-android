@@ -1531,6 +1531,26 @@ Validation passed:
 ./gradlew assembleDebugAndroidTest
 ```
 
+### Iteration 30 — Runtime Failure Count Decoupling
+
+Implemented a focused monitoring metadata correctness slice:
+
+```text
+- MonitoringLoopRunner now counts completed failed background checks from MonitoringRuntimeStateRepository
+- runtime consecutive failure counts continue to increment when smart alert notifications are disabled
+- notification decision state still clears when alerts are disabled, so alert cooldown/recovery behavior remains independent from dashboard operational metadata
+- unit tests cover disabled-alert failures preserving runtime failure counts while clearing notification state
+```
+
+Validation passed:
+
+```bash
+./gradlew :app:testDebugUnitTest --tests dev.worxbend.airgradient.service.MonitoringLoopRunnerTest
+./gradlew test ktlintCheck detekt lint
+./gradlew assembleDebugAndroidTest assembleRelease
+./gradlew clean build
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

@@ -154,6 +154,51 @@ class MonitoringLoopRunnerTest {
         }
 
     @Test
+    fun `notifications disabled failures still record runtime failure count`() =
+        runTest {
+            val runtimeStateRepository = InMemoryMonitoringRuntimeStateRepository()
+            val stateRepository =
+                InMemoryNotificationStateRepository(
+                    initialState = NotificationState.default.copy(consecutiveFailureCount = 2),
+                )
+            val runner =
+                runner(
+                    repository = FakeAirGradientRepository(AirGradientFetchResult.Failure(AirGradientError.Timeout)),
+                    stateRepository = stateRepository,
+                    runtimeStateRepository = runtimeStateRepository,
+                )
+
+            val firstResult = runner.runOneTick(settings(notificationsEnabled = false))
+            val secondResult = runner.runOneTick(settings(notificationsEnabled = false))
+
+            assertEquals(NotificationState.default, stateRepository.state)
+            assertEquals(
+                MonitoringTickResult.Failure(
+                    error = AirGradientError.Timeout,
+                    consecutiveFailureCount = 1,
+                    checkedAt = now,
+                ),
+                firstResult,
+            )
+            assertEquals(
+                MonitoringTickResult.Failure(
+                    error = AirGradientError.Timeout,
+                    consecutiveFailureCount = 2,
+                    checkedAt = now,
+                ),
+                secondResult,
+            )
+            assertEquals(
+                MonitoringRuntimeState.default.copy(
+                    lastCheckedAt = now,
+                    lastFailureAt = now,
+                    consecutiveFailureCount = 2,
+                ),
+                runtimeStateRepository.state,
+            )
+        }
+
+    @Test
     fun `third fetch failure dispatches unreachable notification`() =
         runTest {
             val repository =
