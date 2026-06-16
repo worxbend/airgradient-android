@@ -72,6 +72,7 @@ class NotificationStateRepositoryImpl(
             lastSuccessfulReadAt = lastSuccessfulReadAt?.toString(),
             consecutiveFailureCount = consecutiveFailureCount,
             recoveryCandidateStartedAt = recoveryCandidateStartedAt?.toString(),
+            consecutiveBadReadingCount = consecutiveBadReadingCount,
         )
 
     private fun StoredNotificationState.toDomain(): NotificationState =
@@ -84,6 +85,7 @@ class NotificationStateRepositoryImpl(
             lastSuccessfulReadAt = lastSuccessfulReadAt.toInstantOrNull(),
             consecutiveFailureCount = consecutiveFailureCount.coerceAtLeast(0),
             recoveryCandidateStartedAt = recoveryCandidateStartedAt.toInstantOrNull(),
+            consecutiveBadReadingCount = consecutiveBadReadingCount.coerceAtLeast(0),
         )
 
     private fun String?.toSensorStatusOrNull(): SensorStatus? =
@@ -109,6 +111,7 @@ class NotificationStateRepositoryImpl(
         val lastSuccessfulReadAt: String? = null,
         val consecutiveFailureCount: Int = 0,
         val recoveryCandidateStartedAt: String? = null,
+        val consecutiveBadReadingCount: Int = 0,
     )
 
     private companion object {

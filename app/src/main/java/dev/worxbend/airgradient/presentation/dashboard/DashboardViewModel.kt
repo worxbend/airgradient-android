@@ -75,8 +75,12 @@ class DashboardViewModel(
     }
 
     fun refresh() {
+        launchRefresh(RefreshPresentation.ShowProgress)
+    }
+
+    private fun launchRefresh(presentation: RefreshPresentation) {
         viewModelScope.launch(dispatchers.io) {
-            refreshCurrentSettings()
+            refreshCurrentSettings(presentation)
         }
     }
 
@@ -141,7 +145,7 @@ class DashboardViewModel(
                 notificationDependencies.notificationStateRepository.clearNotificationState()
             }
             restartAutoRefresh(settings)
-            refresh()
+            launchRefresh(RefreshPresentation.ShowProgress)
         }
     }
 
@@ -166,12 +170,12 @@ class DashboardViewModel(
             viewModelScope.launch(dispatchers.io) {
                 while (isActive) {
                     delay(settings.refreshIntervalSeconds * MILLIS_PER_SECOND)
-                    refreshCurrentSettings()
+                    refreshCurrentSettings(RefreshPresentation.Silent)
                 }
             }
     }
 
-    private suspend fun refreshCurrentSettings() {
+    private suspend fun refreshCurrentSettings(presentation: RefreshPresentation) {
         if (!refreshMutex.tryLock()) return
 
         try {
@@ -182,7 +186,9 @@ class DashboardViewModel(
                 return
             }
 
-            emitRefreshingState(settings)
+            if (presentation == RefreshPresentation.ShowProgress) {
+                emitRefreshingState(settings)
+            }
 
             when (val result = refreshDashboard(settings)) {
                 is AirGradientFetchResult.Success -> emitContent(settings, result.snapshot)
@@ -358,4 +364,9 @@ class DashboardViewModel(
         const val FETCHING_STATUS_LABEL = "Fetching measurements..."
         const val LOADED_STATUS_LABEL = "Latest measurements loaded."
     }
+}
+
+private enum class RefreshPresentation {
+    ShowProgress,
+    Silent,
 }

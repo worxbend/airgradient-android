@@ -70,6 +70,7 @@ class NotificationStateRepositoryImplTest {
                     lastSuccessfulReadAt = now.minusSeconds(20),
                     consecutiveFailureCount = 2,
                     recoveryCandidateStartedAt = now.minusSeconds(10),
+                    consecutiveBadReadingCount = 3,
                 )
 
             repository.saveNotificationState(state)

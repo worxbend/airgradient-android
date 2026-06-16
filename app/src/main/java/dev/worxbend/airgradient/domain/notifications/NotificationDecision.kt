@@ -29,4 +29,5 @@ enum class NotificationSuppressionReason {
     NoActionableCondition,
     RecoveryPending,
     ConsecutiveFailureThresholdNotMet,
+    ConsecutiveBadReadingThresholdNotMet,
 }

@@ -1,6 +1,7 @@
 package dev.worxbend.airgradient.presentation.dashboard.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,16 +58,19 @@ private fun MetricCard(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
             ),
     ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            MetricHeader(metric = metric)
-            MetricReading(metric = metric, valueTextStyle = valueTextStyle)
-            TrendLabel(metric = metric)
+        Box(modifier = Modifier.fillMaxSize()) {
+            MetricIconWatermark(kind = metric.kind)
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(14.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                MetricHeader(metric = metric)
+                MetricReading(metric = metric, valueTextStyle = valueTextStyle)
+                TrendLabel(metric = metric)
+            }
         }
     }
 }

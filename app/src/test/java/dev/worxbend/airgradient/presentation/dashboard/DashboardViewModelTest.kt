@@ -41,11 +41,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlin.math.max
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -84,7 +87,7 @@ class DashboardViewModelTest {
             val state = viewModel.uiState.value as DashboardUiState.Content
             assertEquals(firstSnapshot, state.snapshot)
             assertEquals("Latest measurements loaded.", state.fetchStatusLabel)
-            assertEquals("Last updated 2026-06-16T00:00:00Z", state.lastUpdatedLabel)
+            assertEquals(lastUpdatedLabel(firstSnapshot), state.lastUpdatedLabel)
             assertEquals(10, state.metrics.size)
             assertTrue(state.metrics.any { it.kind == SensorMetricKind.PM25 && it.valueLabel == "7 ug/m3" })
             assertEquals(1, repository.calls)
@@ -170,6 +173,53 @@ class DashboardViewModelTest {
             assertEquals(secondSnapshot, state.snapshot)
             assertEquals(2, repository.calls)
             viewModel.viewModelScope.cancel()
+        }
+
+    @Test
+    fun `auto refresh does not emit refreshing state while fetch is in flight`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val repository =
+                FakeAirGradientRepository(
+                    delayMillis = 100,
+                    results =
+                        ArrayDeque(
+                            listOf(
+                                AirGradientFetchResult.Success(firstSnapshot),
+                                AirGradientFetchResult.Success(secondSnapshot),
+                            ),
+                        ),
+                )
+            val viewModel =
+                viewModel(
+                    settings = configuredSettings.copy(refreshIntervalSeconds = 5),
+                    repository = repository,
+                )
+            try {
+                runCurrent()
+                testScheduler.advanceTimeBy(100)
+                runCurrent()
+
+                var state = viewModel.uiState.value as DashboardUiState.Content
+                assertEquals(firstSnapshot, state.snapshot)
+                assertFalse(state.isRefreshing)
+
+                testScheduler.advanceTimeBy(4_900)
+                runCurrent()
+
+                state = viewModel.uiState.value as DashboardUiState.Content
+                assertEquals(firstSnapshot, state.snapshot)
+                assertFalse(state.isRefreshing)
+                assertEquals(2, repository.calls)
+
+                testScheduler.advanceTimeBy(100)
+                runCurrent()
+
+                state = viewModel.uiState.value as DashboardUiState.Content
+                assertEquals(secondSnapshot, state.snapshot)
+                assertFalse(state.isRefreshing)
+            } finally {
+                viewModel.viewModelScope.cancel()
+            }
         }
 
     @Test
@@ -615,5 +665,13 @@ class DashboardViewModelTest {
                 pm25 = 11.0,
                 measuredAt = Instant.parse("2026-06-16T00:00:05Z"),
             )
+
+        fun lastUpdatedLabel(snapshot: AirMeasureSnapshot): String =
+            "Last updated ${
+                DateTimeFormatter
+                    .ofPattern("HH:mm")
+                    .withZone(ZoneId.systemDefault())
+                    .format(snapshot.measuredAt)
+            }"
     }
 }

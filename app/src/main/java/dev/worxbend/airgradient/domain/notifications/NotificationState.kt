@@ -12,6 +12,7 @@ data class NotificationState(
     val lastSuccessfulReadAt: Instant?,
     val consecutiveFailureCount: Int,
     val recoveryCandidateStartedAt: Instant?,
+    val consecutiveBadReadingCount: Int,
 ) {
     companion object {
         val default: NotificationState =
@@ -24,6 +25,7 @@ data class NotificationState(
                 lastSuccessfulReadAt = null,
                 consecutiveFailureCount = 0,
                 recoveryCandidateStartedAt = null,
+                consecutiveBadReadingCount = 0,
             )
     }
 }

@@ -103,6 +103,7 @@ class NotificationDecisionEngine {
     ): NotificationDecision {
         val now = condition.observedAt
         val activeProblemStartedAt = state.activeProblemStartedAt ?: now
+        val newConsecutiveCount = state.consecutiveBadReadingCount + 1
         val nextState =
             state.copy(
                 lastConditionStatus = condition.status,
@@ -111,6 +112,7 @@ class NotificationDecisionEngine {
                 lastSuccessfulReadAt = now,
                 consecutiveFailureCount = 0,
                 recoveryCandidateStartedAt = null,
+                consecutiveBadReadingCount = newConsecutiveCount,
             )
 
         if (severity.rank < policy.minimumSeverity.rank) {
@@ -118,13 +120,27 @@ class NotificationDecisionEngine {
         }
 
         val previousSeverity = state.lastConditionStatus.toNotificationSeverity()
+        val escalating = previousSeverity != null && severity.rank > previousSeverity.rank
         val dominantMetricChanged =
             state.lastDominantMetricKey != null &&
                 condition.dominantMetricKey != null &&
                 state.lastDominantMetricKey != condition.dominantMetricKey
+
+        // Require N consecutive bad readings before the first alert for a new episode.
+        // Escalation bypasses this requirement because a prior alert already informed the user.
+        val thresholdMet = newConsecutiveCount >= policy.consecutiveBadReadingsBeforeAlert
+        if (!thresholdMet && !escalating) {
+            return NotificationDecision.Suppress(
+                NotificationSuppressionReason.ConsecutiveBadReadingThresholdNotMet,
+                nextState,
+            )
+        }
+
+        // Threshold just met on this reading triggers the first episode alert.
+        // Escalation and dominant-metric changes trigger immediate re-alert.
         val shouldNotifyImmediate =
-            previousSeverity == null ||
-                severity.rank > previousSeverity.rank ||
+            newConsecutiveCount == policy.consecutiveBadReadingsBeforeAlert ||
+                escalating ||
                 dominantMetricChanged
 
         if (shouldNotifyImmediate) {
@@ -140,7 +156,7 @@ class NotificationDecisionEngine {
                 now = now,
                 state = nextState,
                 policy = policy,
-                bypassCooldown = severity.rank > (previousSeverity?.rank ?: 0),
+                bypassCooldown = escalating,
             )
         }
 
@@ -172,6 +188,7 @@ class NotificationDecisionEngine {
             state.copy(
                 lastSuccessfulReadAt = now,
                 consecutiveFailureCount = 0,
+                consecutiveBadReadingCount = 0,
             )
 
         if (!hadActiveProblem) {

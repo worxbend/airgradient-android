@@ -80,7 +80,7 @@ object SensorMetricFactory {
                 lowerIsBetter = false,
                 valueReader = AirMeasureSnapshot::temperatureCelsius,
                 statusReader = { SensorStatus.UNKNOWN },
-                interpretationReader = { "Comfort reading" },
+                interpretationReader = { "Comfort" },
             ),
             MetricDefinition(
                 kind = SensorMetricKind.HUMIDITY,
@@ -89,7 +89,7 @@ object SensorMetricFactory {
                 lowerIsBetter = false,
                 valueReader = AirMeasureSnapshot::humidityPercent,
                 statusReader = { SensorStatus.UNKNOWN },
-                interpretationReader = { "Comfort reading" },
+                interpretationReader = { "Comfort" },
             ),
             MetricDefinition(
                 kind = SensorMetricKind.CO2,

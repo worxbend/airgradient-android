@@ -12,6 +12,7 @@ data class NotificationPolicy(
     val notifyOnRecovery: Boolean,
     val notifyOnDeviceUnreachable: Boolean,
     val maxConsecutiveFailuresBeforeDeviceAlert: Int,
+    val consecutiveBadReadingsBeforeAlert: Int,
 ) {
     init {
         require(!cooldown.isNegative) { "Notification cooldown cannot be negative." }
@@ -20,6 +21,9 @@ data class NotificationPolicy(
         require(!staleDataAfter.isNegative) { "Stale-data window cannot be negative." }
         require(maxConsecutiveFailuresBeforeDeviceAlert > 0) {
             "Max consecutive failures before device alert must be positive."
+        }
+        require(consecutiveBadReadingsBeforeAlert > 0) {
+            "Consecutive bad readings before alert must be positive."
         }
     }
 
@@ -35,6 +39,7 @@ data class NotificationPolicy(
                 notifyOnRecovery = true,
                 notifyOnDeviceUnreachable = true,
                 maxConsecutiveFailuresBeforeDeviceAlert = 3,
+                consecutiveBadReadingsBeforeAlert = 2,
             )
     }
 }

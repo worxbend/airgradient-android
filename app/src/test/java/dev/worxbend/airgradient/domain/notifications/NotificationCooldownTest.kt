@@ -9,7 +9,10 @@ import java.time.Instant
 
 class NotificationCooldownTest {
     private val engine = NotificationDecisionEngine()
-    private val policy = NotificationPolicy.default.copy(cooldown = Duration.ofMinutes(20))
+    private val policy = NotificationPolicy.default.copy(
+        cooldown = Duration.ofMinutes(20),
+        consecutiveBadReadingsBeforeAlert = 1,
+    )
 
     @Test
     fun `repeated warning is suppressed during cooldown`() {

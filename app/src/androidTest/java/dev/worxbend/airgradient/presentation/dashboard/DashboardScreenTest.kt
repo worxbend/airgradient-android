@@ -179,7 +179,7 @@ class DashboardScreenTest {
             snapshot = current,
             metrics = SensorMetricFactory.createMetrics(current = current, previous = previous),
             overallStatus = SensorStatus.GOOD,
-            lastUpdatedLabel = "Last updated just now",
+            lastUpdatedLabel = "Last updated 00:12",
             fetchStatusLabel = "Latest measurements loaded.",
             refreshIntervalSeconds = 30,
             monitoringSummary = monitoringSummary,

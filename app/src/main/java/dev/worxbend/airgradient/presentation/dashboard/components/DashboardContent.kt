@@ -21,7 +21,7 @@ internal fun DashboardContent(
     content: DashboardContentModel,
     monitoringActions: DashboardMonitoringActions,
 ) {
-    val aqiMetric = content.metrics.firstMetric(SensorMetricKind.AQI)
+    val heroMetric = content.metrics.heroMetric(content.overallStatus)
     val comfortMetrics =
         listOfNotNull(
             content.metrics.firstMetric(SensorMetricKind.TEMPERATURE),
@@ -67,7 +67,7 @@ internal fun DashboardContent(
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 AqiHeroCard(
-                    metric = aqiMetric,
+                    metric = heroMetric,
                     overallStatus = content.overallStatus,
                     lastUpdatedLabel = content.lastUpdatedLabel,
                     isRefreshing = content.isRefreshing,
@@ -114,3 +114,10 @@ internal data class DashboardContentModel(
 )
 
 private fun List<SensorMetric>.firstMetric(kind: SensorMetricKind): SensorMetric? = firstOrNull { it.kind == kind }
+
+private fun List<SensorMetric>.heroMetric(overallStatus: SensorStatus): SensorMetric? {
+    val aqiMetric = firstMetric(SensorMetricKind.AQI)
+    if (overallStatus.severity <= SensorStatus.GOOD.severity) return aqiMetric ?: firstOrNull()
+
+    return firstOrNull { metric -> metric.status == overallStatus } ?: aqiMetric ?: firstOrNull()
+}

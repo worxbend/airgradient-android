@@ -3,14 +3,16 @@ package dev.worxbend.airgradient.presentation.dashboard
 import dev.worxbend.airgradient.domain.error.AirGradientError
 import dev.worxbend.airgradient.domain.model.AirMeasureSnapshot
 import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 internal object DashboardPresentationFormatter {
     private val instantFormatter = DateTimeFormatter.ISO_INSTANT
+    private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
     fun lastUpdatedLabel(snapshot: AirMeasureSnapshot): String {
-        val formattedInstant = instantFormatter.format(snapshot.measuredAt)
-        return "Last updated $formattedInstant"
+        val formattedTime = timeFormatter.withZone(ZoneId.systemDefault()).format(snapshot.measuredAt)
+        return "Last updated $formattedTime"
     }
 
     fun lastBackgroundCheckLabel(checkedAt: Instant): String {
