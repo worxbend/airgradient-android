@@ -11,7 +11,6 @@ import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
 import dev.worxbend.airgradient.domain.monitoring.MonitoringStatus
 import dev.worxbend.airgradient.domain.monitoring.MonitoringStopReason
-import dev.worxbend.airgradient.domain.monitoring.MonitoringTickResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -31,8 +30,7 @@ class AirQualityMonitoringService : Service() {
     private lateinit var statusNotificationUpdater: PersistentStatusNotificationUpdater
     private var monitoringJob: Job? = null
     private var foregroundStarted = false
-    private var lastCheckedAt: Instant? = null
-    private var lastSuccessfulReadAt: Instant? = null
+    private var statusSnapshot = MonitoringStatusSnapshot()
 
     override fun onCreate() {
         super.onCreate()
@@ -158,20 +156,7 @@ class AirQualityMonitoringService : Service() {
         monitoringSettings: MonitoringSettings,
     ) {
         updateActiveStatus(monitoringSettings)
-        when (val result = loopRunner.runOneTick(appSettings)) {
-            is MonitoringTickResult.Success -> {
-                lastCheckedAt = result.checkedAt
-                lastSuccessfulReadAt = result.snapshot.measuredAt
-            }
-
-            is MonitoringTickResult.Failure -> {
-                lastCheckedAt = result.checkedAt
-            }
-
-            is MonitoringTickResult.Skipped -> {
-                lastCheckedAt = result.checkedAt
-            }
-        }
+        statusSnapshot = statusSnapshot.after(loopRunner.runOneTick(appSettings))
         updateActiveStatus(monitoringSettings)
     }
 
@@ -180,8 +165,8 @@ class AirQualityMonitoringService : Service() {
             MonitoringStatus.Active(
                 mode = MonitoringMode.AlwaysOnForegroundService,
                 pollingInterval = monitoringSettings.foregroundPollingInterval,
-                lastCheckedAt = lastCheckedAt,
-                lastSuccessfulReadAt = lastSuccessfulReadAt,
+                lastCheckedAt = statusSnapshot.lastCheckedAt,
+                lastSuccessfulReadAt = statusSnapshot.lastSuccessfulReadAt,
             ),
         )
     }

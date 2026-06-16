@@ -80,7 +80,9 @@ structured coroutine scope, and delegates each device check to `MonitoringLoopRu
 
 Persistent monitoring notification copy is formatted by `MonitoringStatusTextFormatter`, keeping user-facing service
 status text testable without Android framework dependencies. The notification shows concise local date/time labels for
-the last completed check and last successful reading instead of raw timestamp strings.
+the last completed check and last successful reading instead of raw timestamp strings. The foreground service keeps this
+visible timestamp state through `MonitoringStatusSnapshot`, so skipped ticks such as an overlapping refresh-now request
+do not make the notification claim that a new device check completed.
 
 `AirQualityMonitoringServiceController` is the only app-facing gateway for start, stop, and refresh-now commands. It
 validates that a device URL is configured and that Android 13+ notification permission is available before starting

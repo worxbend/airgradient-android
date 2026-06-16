@@ -1618,6 +1618,19 @@ Behavior notes:
 - Dashboard timestamp labels remain unchanged in this slice.
 ```
 
+### Iteration 34 — Persistent Notification Timestamp Correctness
+
+Implemented a focused foreground-service status correctness slice:
+
+```text
+- added a pure MonitoringStatusSnapshot helper for persistent-notification timestamp state
+- foreground-service success ticks update both last completed check and last successful reading time
+- foreground-service failure ticks update only the last completed check time
+- skipped ticks, including overlapping refresh-now requests, no longer update visible persistent-notification timestamps
+- added unit tests for success, failure, and skipped timestamp transitions
+- updated architecture docs to document the skipped-tick behavior
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
