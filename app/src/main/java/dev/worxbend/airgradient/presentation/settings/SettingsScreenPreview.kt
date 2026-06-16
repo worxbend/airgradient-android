@@ -32,6 +32,7 @@ private fun SettingsScreenPreview() {
                     onThemeModeSelected = {},
                     onForegroundPollingIntervalSelected = {},
                     onPeriodicBackgroundIntervalSelected = {},
+                    onAdaptivePollingEnabledChanged = {},
                     onStartAlwaysOnMonitoring = {},
                     onStartBatteryFriendlyMonitoring = {},
                     onStopMonitoring = {},

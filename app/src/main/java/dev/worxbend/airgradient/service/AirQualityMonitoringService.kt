@@ -110,11 +110,15 @@ class AirQualityMonitoringService : Service() {
                 while (isActive) {
                     val tickResult = refreshOnceFromCurrentSettings() ?: break
 
-                    val configuredInterval =
-                        appGraph.monitoringSettingsRepository
-                            .getMonitoringSettings()
-                            .foregroundPollingInterval
-                    val adaptiveDelay = adaptiveBackoff.updateAndGetDelay(tickResult, configuredInterval)
+                    val monitoringSettings = appGraph.monitoringSettingsRepository.getMonitoringSettings()
+                    val configuredInterval = monitoringSettings.foregroundPollingInterval
+                    val adaptiveDelay =
+                        if (monitoringSettings.adaptivePollingEnabled) {
+                            adaptiveBackoff.updateAndGetDelay(tickResult, configuredInterval)
+                        } else {
+                            adaptiveBackoff.reset()
+                            configuredInterval
+                        }
                     val effectiveDelay = applyBatterySaverMinimum(adaptiveDelay)
                     delay(effectiveDelay.toMillis())
                 }

@@ -98,6 +98,7 @@ data class SettingsScreenActions(
     val onThemeModeSelected: (AppThemeMode) -> Unit,
     val onForegroundPollingIntervalSelected: (Int) -> Unit,
     val onPeriodicBackgroundIntervalSelected: (Int) -> Unit,
+    val onAdaptivePollingEnabledChanged: (Boolean) -> Unit,
     val onStartAlwaysOnMonitoring: () -> Unit,
     val onStartBatteryFriendlyMonitoring: () -> Unit,
     val onStopMonitoring: () -> Unit,
@@ -158,12 +159,14 @@ private fun SettingsContent(
                     mode = state.monitoringMode,
                     foregroundPollingIntervalSeconds = state.foregroundPollingIntervalSeconds,
                     periodicBackgroundIntervalMinutes = state.periodicBackgroundIntervalMinutes,
+                    adaptivePollingEnabled = state.adaptivePollingEnabled,
                     diagnostics = state.monitoringDiagnostics,
                     actionState = state.monitoringActionState,
                     actions =
                         MonitoringControlActions(
                             onForegroundPollingIntervalSelected = actions.onForegroundPollingIntervalSelected,
                             onPeriodicBackgroundIntervalSelected = actions.onPeriodicBackgroundIntervalSelected,
+                            onAdaptivePollingEnabledChanged = actions.onAdaptivePollingEnabledChanged,
                             onStartAlwaysOnMonitoring = actions.onStartAlwaysOnMonitoring,
                             onStartBatteryFriendlyMonitoring = actions.onStartBatteryFriendlyMonitoring,
                             onStopMonitoring = actions.onStopMonitoring,

@@ -7,6 +7,7 @@ data class MonitoringSettings(
     val foregroundPollingIntervalSeconds: Int,
     val periodicBackgroundIntervalMinutes: Int,
     val persistentNotificationEnabled: Boolean,
+    val adaptivePollingEnabled: Boolean = true,
 ) {
     val foregroundPollingInterval: Duration
         get() = Duration.ofSeconds(foregroundPollingIntervalSeconds.toLong())
@@ -26,6 +27,7 @@ data class MonitoringSettings(
                 foregroundPollingIntervalSeconds = DEFAULT_FOREGROUND_POLLING_INTERVAL_SECONDS,
                 periodicBackgroundIntervalMinutes = DEFAULT_PERIODIC_BACKGROUND_INTERVAL_MINUTES,
                 persistentNotificationEnabled = true,
+                adaptivePollingEnabled = true,
             )
 
         fun requireSupportedForegroundInterval(interval: Duration): Int {

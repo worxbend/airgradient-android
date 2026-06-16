@@ -23,6 +23,7 @@ data class SettingsUiState(
         MonitoringSettings.DEFAULT_FOREGROUND_POLLING_INTERVAL_SECONDS,
     val periodicBackgroundIntervalMinutes: Int =
         MonitoringSettings.DEFAULT_PERIODIC_BACKGROUND_INTERVAL_MINUTES,
+    val adaptivePollingEnabled: Boolean = true,
     val monitoringDiagnostics: SettingsMonitoringDiagnostics = SettingsMonitoringDiagnostics(),
     val monitoringActionState: MonitoringActionState = MonitoringActionState.Idle,
     val saveState: DeviceUrlSaveState = DeviceUrlSaveState.Idle,

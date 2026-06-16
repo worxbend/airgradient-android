@@ -1785,6 +1785,44 @@ Validation passed:
 ./gradlew clean build assembleRelease
 ```
 
+### Iteration 42 — Adaptive Polling Toggle In Settings UI
+
+Implemented battery optimization Phase 8 — exposing adaptive polling control in the settings UI:
+
+```text
+- added adaptivePollingEnabled field to MonitoringSettings domain model (default true)
+- persisted adaptive polling preference in DataStore with MONITORING_ADAPTIVE_POLLING_ENABLED key
+- added updateAdaptivePollingEnabled to MonitoringSettingsRepository interface and SettingsRepositoryImpl
+- added SaveAdaptivePollingEnabledUseCase and wired it into SettingsUseCases and AppGraph
+- added adaptivePollingEnabled to SettingsUiState; applyMonitoringSettings maps from persisted settings
+- added onAdaptivePollingEnabledChanged handler in SettingsViewModel
+- added AdaptivePollingToggle composable to MonitoringControls.kt with descriptive copy
+- AirQualityMonitoringService now reads adaptivePollingEnabled from MonitoringSettings each tick;
+  when disabled, backoff state is reset and the configured interval is used directly
+- merged toStatusText/toChipLabel into MonitoringStatusRow to stay within detekt function limit
+- added @Suppress("LongParameterList") on the MonitoringControls composable
+- added SettingsViewModelTest covering toggle persistence and UI state update
+- updated all FakeMonitoringSettingsRepository implementations in tests
+- updated SettingsScreenActions, SettingsScreenPreview, and androidTest helper to include the new action
+```
+
+Behavior notes:
+
+```text
+- adaptive polling defaults to enabled for new installs; existing users who never set the preference
+  also default to true because the DataStore key is absent and the fallback is true
+- when adaptive polling is disabled the service polls at exactly the configured interval every tick
+- adaptive backoff resets when the toggle changes to disabled so backoff state does not accumulate
+  between on/off cycles
+```
+
+Validation passed:
+
+```bash
+./gradlew test ktlintCheck detekt lint
+./gradlew assembleDebugAndroidTest assembleRelease
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

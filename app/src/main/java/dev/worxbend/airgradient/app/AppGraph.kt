@@ -25,6 +25,7 @@ import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringRuntimeStateUseC
 import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.RefreshDashboardUseCase
+import dev.worxbend.airgradient.domain.usecase.SaveAdaptivePollingEnabledUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveDeviceUrlUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveForegroundPollingIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveMinimumNotificationSeverityUseCase
@@ -147,6 +148,8 @@ class AppGraph(
                             SaveForegroundPollingIntervalUseCase(monitoringSettingsRepository),
                         savePeriodicBackgroundInterval =
                             SavePeriodicBackgroundIntervalUseCase(monitoringSettingsRepository),
+                        saveAdaptivePollingEnabled =
+                            SaveAdaptivePollingEnabledUseCase(monitoringSettingsRepository),
                         saveNotificationsEnabled = SaveNotificationsEnabledUseCase(settingsRepository),
                         saveMinimumNotificationSeverity =
                             SaveMinimumNotificationSeverityUseCase(settingsRepository),

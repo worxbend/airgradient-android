@@ -25,6 +25,7 @@ import dev.worxbend.airgradient.domain.usecase.GetCurrentMeasurementUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringRuntimeStateUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
+import dev.worxbend.airgradient.domain.usecase.SaveAdaptivePollingEnabledUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveDeviceUrlUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveForegroundPollingIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveMinimumNotificationSeverityUseCase
@@ -315,6 +316,23 @@ class SettingsViewModelTest {
         }
 
     @Test
+    fun `adaptive polling toggle persists change and updates ui state`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val monitoringRepository = FakeMonitoringSettingsRepository()
+            val viewModel = viewModel(monitoringSettingsRepository = monitoringRepository)
+            runCurrent()
+
+            assertEquals(true, viewModel.uiState.value.adaptivePollingEnabled)
+
+            viewModel.onAdaptivePollingEnabledChanged(false)
+            runCurrent()
+
+            assertEquals(false, monitoringRepository.state.value.adaptivePollingEnabled)
+            assertEquals(false, viewModel.uiState.value.adaptivePollingEnabled)
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
     fun `start always-on monitoring delegates to controller and reports success`() =
         runTest(mainDispatcherRule.dispatcher) {
             val controller = FakeMonitoringServiceController()
@@ -408,6 +426,8 @@ class SettingsViewModelTest {
                         SaveForegroundPollingIntervalUseCase(monitoringSettingsRepository),
                     savePeriodicBackgroundInterval =
                         SavePeriodicBackgroundIntervalUseCase(monitoringSettingsRepository),
+                    saveAdaptivePollingEnabled =
+                        SaveAdaptivePollingEnabledUseCase(monitoringSettingsRepository),
                     saveNotificationsEnabled = SaveNotificationsEnabledUseCase(settingsRepository),
                     saveMinimumNotificationSeverity = SaveMinimumNotificationSeverityUseCase(settingsRepository),
                     saveNotifyOnRecovery = SaveNotifyOnRecoveryUseCase(settingsRepository),
@@ -498,6 +518,10 @@ class SettingsViewModelTest {
                     periodicBackgroundIntervalMinutes =
                         MonitoringSettings.requireSupportedPeriodicInterval(interval),
                 )
+        }
+
+        override suspend fun updateAdaptivePollingEnabled(enabled: Boolean) {
+            state.value = state.value.copy(adaptivePollingEnabled = enabled)
         }
     }
 

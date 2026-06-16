@@ -200,6 +200,13 @@ class SettingsViewModel(
         }
     }
 
+    fun onAdaptivePollingEnabledChanged(enabled: Boolean) {
+        _uiState.update { state -> state.copy(adaptivePollingEnabled = enabled) }
+        viewModelScope.launch(dispatchers.io) {
+            useCases.saveAdaptivePollingEnabled(enabled)
+        }
+    }
+
     fun onAlwaysOnMonitoringEnabledChanged(enabled: Boolean) {
         if (enabled) {
             _uiState.update { state -> state.copy(monitoringActionState = MonitoringActionState.Starting) }
@@ -277,6 +284,7 @@ private fun SettingsUiState.applyMonitoringSettings(settings: MonitoringSettings
         monitoringMode = settings.mode,
         foregroundPollingIntervalSeconds = settings.foregroundPollingIntervalSeconds,
         periodicBackgroundIntervalMinutes = settings.periodicBackgroundIntervalMinutes,
+        adaptivePollingEnabled = settings.adaptivePollingEnabled,
         monitoringActionState =
             if (settings.mode != MonitoringMode.Off &&
                 monitoringActionState == MonitoringActionState.Starting

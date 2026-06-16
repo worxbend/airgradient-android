@@ -15,4 +15,6 @@ interface MonitoringSettingsRepository {
     suspend fun updateForegroundPollingInterval(interval: Duration)
 
     suspend fun updatePeriodicBackgroundInterval(interval: Duration)
+
+    suspend fun updateAdaptivePollingEnabled(enabled: Boolean)
 }

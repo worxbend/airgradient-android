@@ -70,6 +70,10 @@ class SettingsRepositoryImpl(
         )
     }
 
+    override suspend fun updateAdaptivePollingEnabled(enabled: Boolean) {
+        settingsDataSource.saveAdaptivePollingEnabled(enabled)
+    }
+
     private suspend fun saveServerUrl(serverUrl: String?): SaveDeviceUrlResult.Saved {
         settingsDataSource.saveServerUrl(serverUrl)
         return SaveDeviceUrlResult.Saved(serverUrl)

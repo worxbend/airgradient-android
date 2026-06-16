@@ -101,6 +101,12 @@ class SettingsDataSource(
         }
     }
 
+    suspend fun saveAdaptivePollingEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[MONITORING_ADAPTIVE_POLLING_ENABLED] = enabled
+        }
+    }
+
     private fun mapPreferences(preferences: Preferences): AppSettings =
         AppSettings(
             serverUrl = preferences[SERVER_URL],
@@ -127,6 +133,7 @@ class SettingsDataSource(
                     ?.coerceAtLeast(MonitoringSettings.MIN_PERIODIC_BACKGROUND_INTERVAL_MINUTES)
                     ?: MonitoringSettings.DEFAULT_PERIODIC_BACKGROUND_INTERVAL_MINUTES,
             persistentNotificationEnabled = preferences[MONITORING_PERSISTENT_NOTIFICATION_ENABLED] ?: true,
+            adaptivePollingEnabled = preferences[MONITORING_ADAPTIVE_POLLING_ENABLED] ?: true,
         )
 
     private fun String?.toThemeMode(): AppThemeMode =
@@ -161,5 +168,7 @@ class SettingsDataSource(
             intPreferencesKey("monitoring_periodic_interval_minutes")
         val MONITORING_PERSISTENT_NOTIFICATION_ENABLED: Preferences.Key<Boolean> =
             booleanPreferencesKey("monitoring_persistent_notification_enabled")
+        val MONITORING_ADAPTIVE_POLLING_ENABLED: Preferences.Key<Boolean> =
+            booleanPreferencesKey("monitoring_adaptive_polling_enabled")
     }
 }

@@ -134,6 +134,10 @@ class MonitoringStartupReconcilerTest {
                         MonitoringSettings.requireSupportedPeriodicInterval(interval),
                 )
         }
+
+        override suspend fun updateAdaptivePollingEnabled(enabled: Boolean) {
+            state.value = state.value.copy(adaptivePollingEnabled = enabled)
+        }
     }
 
     private class RecordingMonitoringServiceController(

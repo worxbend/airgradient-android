@@ -56,6 +56,7 @@ fun SettingsRoute(
                 onThemeModeSelected = viewModel::onThemeModeSelected,
                 onForegroundPollingIntervalSelected = viewModel::onForegroundPollingIntervalSelected,
                 onPeriodicBackgroundIntervalSelected = viewModel::onPeriodicBackgroundIntervalSelected,
+                onAdaptivePollingEnabledChanged = viewModel::onAdaptivePollingEnabledChanged,
                 onStartAlwaysOnMonitoring = {
                     if (hasNotificationPermission(context)) {
                         viewModel.onAlwaysOnMonitoringEnabledChanged(true)

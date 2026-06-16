@@ -11,6 +11,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,12 +23,14 @@ import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationErro
 import dev.worxbend.airgradient.presentation.settings.MonitoringActionState
 import dev.worxbend.airgradient.presentation.settings.SettingsMonitoringDiagnostics
 
+@Suppress("LongParameterList")
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 fun MonitoringControls(
     mode: MonitoringMode,
     foregroundPollingIntervalSeconds: Int,
     periodicBackgroundIntervalMinutes: Int,
+    adaptivePollingEnabled: Boolean,
     diagnostics: SettingsMonitoringDiagnostics,
     actionState: MonitoringActionState,
     actions: MonitoringControlActions,
@@ -69,6 +72,10 @@ fun MonitoringControls(
             onSelected = actions.onPeriodicBackgroundIntervalSelected,
             valueLabel = Int::toMinutesIntervalLabel,
         )
+        AdaptivePollingToggle(
+            enabled = adaptivePollingEnabled,
+            onChanged = actions.onAdaptivePollingEnabledChanged,
+        )
         MonitoringActionMessage(actionState = actionState)
         MonitoringDiagnostics(diagnostics = diagnostics)
         FlowRow(
@@ -103,6 +110,7 @@ fun MonitoringControls(
 data class MonitoringControlActions(
     val onForegroundPollingIntervalSelected: (Int) -> Unit,
     val onPeriodicBackgroundIntervalSelected: (Int) -> Unit,
+    val onAdaptivePollingEnabledChanged: (Boolean) -> Unit,
     val onStartAlwaysOnMonitoring: () -> Unit,
     val onStartBatteryFriendlyMonitoring: () -> Unit,
     val onStopMonitoring: () -> Unit,
@@ -139,7 +147,51 @@ private fun MonitoringIntervalChips(
 }
 
 @Composable
+private fun AdaptivePollingToggle(
+    enabled: Boolean,
+    onChanged: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = "Adaptive polling",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = "Automatically reduces check frequency when air quality is stable or the device is unreachable.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(
+            checked = enabled,
+            onCheckedChange = onChanged,
+        )
+    }
+}
+
+@Composable
 private fun MonitoringStatusRow(mode: MonitoringMode) {
+    val statusText =
+        when (mode) {
+            MonitoringMode.Off -> "Monitoring off"
+            MonitoringMode.AlwaysOnForegroundService -> "Always-on monitoring active"
+            MonitoringMode.BatteryFriendlyPeriodic -> "Battery-friendly monitoring active"
+        }
+    val chipLabel =
+        when (mode) {
+            MonitoringMode.Off -> "Off"
+            MonitoringMode.AlwaysOnForegroundService -> "Always-on"
+            MonitoringMode.BatteryFriendlyPeriodic -> "Periodic"
+        }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -155,14 +207,14 @@ private fun MonitoringStatusRow(mode: MonitoringMode) {
                 fontWeight = FontWeight.Medium,
             )
             Text(
-                text = mode.toStatusText(),
+                text = statusText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         AssistChip(
             onClick = {},
-            label = { Text(text = mode.toChipLabel()) },
+            label = { Text(text = chipLabel) },
         )
     }
 }
@@ -224,20 +276,6 @@ private fun MonitoringDiagnostics(diagnostics: SettingsMonitoringDiagnostics) {
         }
     }
 }
-
-private fun MonitoringMode.toStatusText(): String =
-    when (this) {
-        MonitoringMode.Off -> "Monitoring off"
-        MonitoringMode.AlwaysOnForegroundService -> "Always-on monitoring active"
-        MonitoringMode.BatteryFriendlyPeriodic -> "Battery-friendly monitoring active"
-    }
-
-private fun MonitoringMode.toChipLabel(): String =
-    when (this) {
-        MonitoringMode.Off -> "Off"
-        MonitoringMode.AlwaysOnForegroundService -> "Always-on"
-        MonitoringMode.BatteryFriendlyPeriodic -> "Periodic"
-    }
 
 private fun MonitoringPolicyValidationError.toMonitoringErrorMessage(): String =
     when (this) {

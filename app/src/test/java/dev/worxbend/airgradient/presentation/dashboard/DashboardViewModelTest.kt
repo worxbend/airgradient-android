@@ -454,6 +454,10 @@ class DashboardViewModelTest {
                         MonitoringSettings.requireSupportedPeriodicInterval(interval),
                 )
         }
+
+        override suspend fun updateAdaptivePollingEnabled(enabled: Boolean) {
+            settingsState.value = settingsState.value.copy(adaptivePollingEnabled = enabled)
+        }
     }
 
     private class FakeMonitoringRuntimeStateRepository(

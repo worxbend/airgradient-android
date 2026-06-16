@@ -209,3 +209,8 @@
 2026-06-16T12:49:23Z iteration 3 started remaining=17113s
 2026-06-16T13:10:00Z iteration 3 implemented battery saver enforcement (Phase 7) and reduced notification state writes (Phase 5)
 2026-06-16T13:10:00Z iteration 3 validation passed commands="./gradlew test ktlintCheck detekt lint" "./gradlew clean build assembleRelease"
+2026-06-16T12:57:23Z iteration 3 no changes to commit
+2026-06-16T12:57:23Z iteration 3 completed validation_status=0
+2026-06-16T12:57:23Z iteration 4 started remaining=16633s
+2026-06-16T13:30:00Z iteration 4 implemented battery optimization Phase 8 — adaptive polling toggle in settings UI with persistence, ViewModel handler, Compose toggle, and service integration
+2026-06-16T13:30:00Z iteration 4 validation passed commands="./gradlew test ktlintCheck detekt lint" "./gradlew assembleDebugAndroidTest assembleRelease"
