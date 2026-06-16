@@ -5,16 +5,15 @@ import androidx.lifecycle.viewModelScope
 import dev.worxbend.airgradient.core.dispatchers.AppDispatchers
 import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
+import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
 import dev.worxbend.airgradient.domain.repository.SaveDeviceUrlResult
 import dev.worxbend.airgradient.domain.sensors.DeviceUrlNormalizationResult
 import dev.worxbend.airgradient.domain.sensors.DeviceUrlNormalizer
-import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
-import dev.worxbend.airgradient.domain.usecase.SaveDeviceUrlUseCase
-import dev.worxbend.airgradient.domain.usecase.SaveNotificationsEnabledUseCase
-import dev.worxbend.airgradient.domain.usecase.SaveRefreshIntervalUseCase
-import dev.worxbend.airgradient.domain.usecase.SaveThemeModeUseCase
 import dev.worxbend.airgradient.domain.usecase.TestDeviceConnectionResult
-import dev.worxbend.airgradient.domain.usecase.TestDeviceConnectionUseCase
+import dev.worxbend.airgradient.service.MonitoringServiceController
+import dev.worxbend.airgradient.service.MonitoringServiceControllerResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,12 +21,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(
-    private val observeSettings: ObserveSettingsUseCase,
-    private val saveDeviceUrlUseCase: SaveDeviceUrlUseCase,
-    private val saveRefreshInterval: SaveRefreshIntervalUseCase,
-    private val saveNotificationsEnabled: SaveNotificationsEnabledUseCase,
-    private val saveThemeMode: SaveThemeModeUseCase,
-    private val testDeviceConnection: TestDeviceConnectionUseCase,
+    private val useCases: SettingsUseCases,
+    private val monitoringServiceController: MonitoringServiceController,
     private val dispatchers: AppDispatchers = AppDispatchers.production,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -37,7 +32,14 @@ class SettingsViewModel(
 
     init {
         viewModelScope.launch(dispatchers.io) {
-            observeSettings().collect(::applySettings)
+            useCases.observeSettings().collect { settings ->
+                _uiState.update { state -> state.applySettings(settings, isDeviceUrlDirty) }
+            }
+        }
+        viewModelScope.launch(dispatchers.io) {
+            useCases.observeMonitoringSettings().collect { settings ->
+                _uiState.update { state -> state.applyMonitoringSettings(settings) }
+            }
         }
     }
 
@@ -55,7 +57,7 @@ class SettingsViewModel(
 
     fun saveDeviceUrl() {
         viewModelScope.launch(dispatchers.io) {
-            when (val result = saveDeviceUrlUseCase(_uiState.value.deviceUrlInput)) {
+            when (val result = useCases.saveDeviceUrl(_uiState.value.deviceUrlInput)) {
                 SaveDeviceUrlResult.Invalid -> {
                     _uiState.update { state -> state.copy(saveState = DeviceUrlSaveState.Invalid) }
                 }
@@ -80,7 +82,7 @@ class SettingsViewModel(
             _uiState.update { state -> state.copy(connectionTestState = ConnectionTestState.Testing) }
 
             val testState =
-                when (val result = testDeviceConnection(input)) {
+                when (val result = useCases.testDeviceConnection(input)) {
                     TestDeviceConnectionResult.InvalidUrl -> {
                         ConnectionTestState.InvalidInput
                     }
@@ -105,7 +107,7 @@ class SettingsViewModel(
         val clampedSeconds = AppSettings.clampRefreshInterval(seconds)
         _uiState.update { state -> state.copy(refreshIntervalSeconds = clampedSeconds) }
         viewModelScope.launch(dispatchers.io) {
-            saveRefreshInterval(clampedSeconds)
+            useCases.saveRefreshInterval(clampedSeconds)
         }
     }
 
@@ -117,7 +119,7 @@ class SettingsViewModel(
             )
         }
         viewModelScope.launch(dispatchers.io) {
-            saveNotificationsEnabled(enabled)
+            useCases.saveNotificationsEnabled(enabled)
         }
     }
 
@@ -129,44 +131,98 @@ class SettingsViewModel(
             )
         }
         viewModelScope.launch(dispatchers.io) {
-            saveNotificationsEnabled(false)
+            useCases.saveNotificationsEnabled(false)
         }
     }
 
     fun onThemeModeSelected(themeMode: AppThemeMode) {
         _uiState.update { state -> state.copy(themeMode = themeMode) }
         viewModelScope.launch(dispatchers.io) {
-            saveThemeMode(themeMode)
+            useCases.saveThemeMode(themeMode)
         }
     }
 
-    private fun applySettings(settings: AppSettings) {
+    fun onForegroundPollingIntervalSelected(seconds: Int) {
+        val supportedSeconds = seconds.coerceAtLeast(MonitoringSettings.MIN_FOREGROUND_POLLING_INTERVAL_SECONDS)
+        _uiState.update { state -> state.copy(foregroundPollingIntervalSeconds = supportedSeconds) }
+        viewModelScope.launch(dispatchers.io) {
+            useCases.saveForegroundPollingInterval(supportedSeconds)
+        }
+    }
+
+    fun onAlwaysOnMonitoringEnabledChanged(enabled: Boolean) {
+        if (enabled) {
+            _uiState.update { state -> state.copy(monitoringActionState = MonitoringActionState.Starting) }
+            viewModelScope.launch(dispatchers.io) {
+                val actionState =
+                    when (val result = monitoringServiceController.startAlwaysOnMonitoring()) {
+                        MonitoringServiceControllerResult.Started -> MonitoringActionState.Started
+                        MonitoringServiceControllerResult.Stopped -> MonitoringActionState.Stopped
+                        is MonitoringServiceControllerResult.Rejected -> MonitoringActionState.Rejected(result.error)
+                    }
+                _uiState.update { state -> state.copy(monitoringActionState = actionState) }
+            }
+        } else {
+            _uiState.update { state -> state.copy(monitoringActionState = MonitoringActionState.Stopping) }
+            viewModelScope.launch(dispatchers.io) {
+                monitoringServiceController.stopMonitoring()
+                _uiState.update { state -> state.copy(monitoringActionState = MonitoringActionState.Stopped) }
+            }
+        }
+    }
+
+    fun onMonitoringPermissionDenied() {
         _uiState.update { state ->
             state.copy(
-                deviceUrlInput = if (isDeviceUrlDirty) state.deviceUrlInput else settings.serverUrl.orEmpty(),
-                deviceUrlPreview =
-                    if (isDeviceUrlDirty) {
-                        state.deviceUrlPreview
-                    } else {
-                        settings.serverUrl.toDeviceUrlPreview()
-                    },
-                refreshIntervalSeconds = settings.refreshIntervalSeconds,
-                notificationsEnabled = settings.notificationsEnabled,
-                notificationPermissionDenied =
-                    if (settings.notificationsEnabled) {
-                        false
-                    } else {
-                        state.notificationPermissionDenied
-                    },
-                themeMode = settings.themeMode,
+                monitoringActionState =
+                    MonitoringActionState.Rejected(
+                        MonitoringPolicyValidationError.MissingNotificationPermission,
+                    ),
             )
         }
     }
-
-    private fun String?.toDeviceUrlPreview(): DeviceUrlPreview =
-        when (val result = DeviceUrlNormalizer.normalize(orEmpty())) {
-            DeviceUrlNormalizationResult.Unconfigured -> DeviceUrlPreview.Empty
-            DeviceUrlNormalizationResult.Invalid -> DeviceUrlPreview.Invalid
-            is DeviceUrlNormalizationResult.Normalized -> DeviceUrlPreview.Valid(result.value)
-        }
 }
+
+private fun SettingsUiState.applySettings(
+    settings: AppSettings,
+    isDeviceUrlDirty: Boolean,
+): SettingsUiState =
+    copy(
+        deviceUrlInput = if (isDeviceUrlDirty) deviceUrlInput else settings.serverUrl.orEmpty(),
+        deviceUrlPreview =
+            if (isDeviceUrlDirty) {
+                deviceUrlPreview
+            } else {
+                settings.serverUrl.toDeviceUrlPreview()
+            },
+        refreshIntervalSeconds = settings.refreshIntervalSeconds,
+        notificationsEnabled = settings.notificationsEnabled,
+        notificationPermissionDenied =
+            if (settings.notificationsEnabled) {
+                false
+            } else {
+                notificationPermissionDenied
+            },
+        themeMode = settings.themeMode,
+    )
+
+private fun SettingsUiState.applyMonitoringSettings(settings: MonitoringSettings): SettingsUiState =
+    copy(
+        monitoringMode = settings.mode,
+        foregroundPollingIntervalSeconds = settings.foregroundPollingIntervalSeconds,
+        monitoringActionState =
+            if (settings.mode == MonitoringMode.AlwaysOnForegroundService &&
+                monitoringActionState == MonitoringActionState.Starting
+            ) {
+                MonitoringActionState.Started
+            } else {
+                monitoringActionState
+            },
+    )
+
+private fun String?.toDeviceUrlPreview(): DeviceUrlPreview =
+    when (val result = DeviceUrlNormalizer.normalize(orEmpty())) {
+        DeviceUrlNormalizationResult.Unconfigured -> DeviceUrlPreview.Empty
+        DeviceUrlNormalizationResult.Invalid -> DeviceUrlPreview.Invalid
+        is DeviceUrlNormalizationResult.Normalized -> DeviceUrlPreview.Valid(result.value)
+    }

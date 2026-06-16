@@ -8,6 +8,8 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.worxbend.airgradient.domain.error.AirGradientError
 import dev.worxbend.airgradient.domain.model.AppThemeMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
 import dev.worxbend.airgradient.presentation.theme.AirGradientTheme
 import org.junit.Rule
 import org.junit.Test
@@ -130,6 +132,89 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun monitoringControlsDispatchStartStopAndIntervalCallbacks() {
+        val selectedInterval = AtomicReference<Int>()
+        val startClicks = AtomicInteger(0)
+        val stopClicks = AtomicInteger(0)
+
+        composeRule.setContent {
+            AirGradientTheme(dynamicColor = false) {
+                SettingsScreen(
+                    state = SettingsUiState(foregroundPollingIntervalSeconds = 30),
+                    onNavigateBack = {},
+                    actions =
+                        actions(
+                            onForegroundPollingIntervalSelected = selectedInterval::set,
+                            onStartAlwaysOnMonitoring = { startClicks.incrementAndGet() },
+                            onStopMonitoring = { stopClicks.incrementAndGet() },
+                        ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Monitoring").performScrollTo()
+        composeRule.onNodeWithText("1m").performClick()
+        composeRule.onNodeWithText("Start always-on").performClick()
+
+        composeRule.runOnIdle {
+            check(selectedInterval.get() == 60)
+            check(startClicks.get() == 1)
+            check(stopClicks.get() == 0)
+        }
+
+        composeRule.setContent {
+            AirGradientTheme(dynamicColor = false) {
+                SettingsScreen(
+                    state =
+                        SettingsUiState(
+                            monitoringMode = MonitoringMode.AlwaysOnForegroundService,
+                            monitoringActionState = MonitoringActionState.Started,
+                        ),
+                    onNavigateBack = {},
+                    actions =
+                        actions(
+                            onForegroundPollingIntervalSelected = selectedInterval::set,
+                            onStartAlwaysOnMonitoring = { startClicks.incrementAndGet() },
+                            onStopMonitoring = { stopClicks.incrementAndGet() },
+                        ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Monitoring").performScrollTo()
+        composeRule.onNodeWithText("Stop monitoring").performClick()
+
+        composeRule.runOnIdle {
+            check(startClicks.get() == 1)
+            check(stopClicks.get() == 1)
+        }
+    }
+
+    @Test
+    fun monitoringValidationErrorShowsUserFacingCopy() {
+        composeRule.setContent {
+            AirGradientTheme(dynamicColor = false) {
+                SettingsScreen(
+                    state =
+                        SettingsUiState(
+                            monitoringActionState =
+                                MonitoringActionState.Rejected(
+                                    MonitoringPolicyValidationError.MissingDeviceUrl,
+                                ),
+                        ),
+                    onNavigateBack = {},
+                    actions = actions(),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Monitoring").performScrollTo()
+        composeRule
+            .onNodeWithText("Configure a device URL before starting monitoring.")
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun connectionFailureStateShowsMappedErrorMessage() {
         composeRule.setContent {
             AirGradientTheme(dynamicColor = false) {
@@ -160,6 +245,9 @@ class SettingsScreenTest {
         onRefreshIntervalSelected: (Int) -> Unit = {},
         onNotificationsEnabledChanged: (Boolean) -> Unit = {},
         onThemeModeSelected: (AppThemeMode) -> Unit = {},
+        onForegroundPollingIntervalSelected: (Int) -> Unit = {},
+        onStartAlwaysOnMonitoring: () -> Unit = {},
+        onStopMonitoring: () -> Unit = {},
     ): SettingsScreenActions =
         SettingsScreenActions(
             onDeviceUrlChanged = onDeviceUrlChanged,
@@ -168,5 +256,8 @@ class SettingsScreenTest {
             onRefreshIntervalSelected = onRefreshIntervalSelected,
             onNotificationsEnabledChanged = onNotificationsEnabledChanged,
             onThemeModeSelected = onThemeModeSelected,
+            onForegroundPollingIntervalSelected = onForegroundPollingIntervalSelected,
+            onStartAlwaysOnMonitoring = onStartAlwaysOnMonitoring,
+            onStopMonitoring = onStopMonitoring,
         )
 }

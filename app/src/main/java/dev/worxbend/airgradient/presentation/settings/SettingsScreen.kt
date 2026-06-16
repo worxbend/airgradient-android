@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.presentation.settings.components.DeviceUrlInput
 import dev.worxbend.airgradient.presentation.settings.components.DeviceUrlInputActions
+import dev.worxbend.airgradient.presentation.settings.components.MonitoringControls
 import dev.worxbend.airgradient.presentation.settings.components.RefreshIntervalSelector
 import dev.worxbend.airgradient.presentation.settings.components.ThemeSelector
 
@@ -86,6 +87,9 @@ data class SettingsScreenActions(
     val onRefreshIntervalSelected: (Int) -> Unit,
     val onNotificationsEnabledChanged: (Boolean) -> Unit,
     val onThemeModeSelected: (AppThemeMode) -> Unit,
+    val onForegroundPollingIntervalSelected: (Int) -> Unit,
+    val onStartAlwaysOnMonitoring: () -> Unit,
+    val onStopMonitoring: () -> Unit,
 )
 
 @Composable
@@ -129,6 +133,18 @@ private fun SettingsContent(
                     enabled = state.notificationsEnabled,
                     permissionDenied = state.notificationPermissionDenied,
                     onEnabledChanged = actions.onNotificationsEnabledChanged,
+                )
+            }
+        }
+        item {
+            SettingsSection(title = "Monitoring") {
+                MonitoringControls(
+                    mode = state.monitoringMode,
+                    foregroundPollingIntervalSeconds = state.foregroundPollingIntervalSeconds,
+                    actionState = state.monitoringActionState,
+                    onForegroundPollingIntervalSelected = actions.onForegroundPollingIntervalSelected,
+                    onStartAlwaysOnMonitoring = actions.onStartAlwaysOnMonitoring,
+                    onStopMonitoring = actions.onStopMonitoring,
                 )
             }
         }

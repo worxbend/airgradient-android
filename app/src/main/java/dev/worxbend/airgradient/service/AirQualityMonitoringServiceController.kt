@@ -14,8 +14,8 @@ class AirQualityMonitoringServiceController(
     private val monitoringSettingsRepository: MonitoringSettingsRepository,
     private val permissionChecker: MonitoringNotificationPermissionChecker,
     private val serviceGateway: MonitoringServiceGateway,
-) {
-    suspend fun startAlwaysOnMonitoring(): MonitoringServiceControllerResult {
+) : MonitoringServiceController {
+    override suspend fun startAlwaysOnMonitoring(): MonitoringServiceControllerResult {
         val appSettings = settingsRepository.settings.first()
         val monitoringSettings = monitoringSettingsRepository.getMonitoringSettings()
         val policy =
@@ -44,15 +44,23 @@ class AirQualityMonitoringServiceController(
         }
     }
 
-    suspend fun stopMonitoring(): MonitoringServiceControllerResult.Stopped {
+    override suspend fun stopMonitoring(): MonitoringServiceControllerResult.Stopped {
         monitoringSettingsRepository.updateMonitoringMode(MonitoringMode.Off)
         serviceGateway.stopForegroundMonitoring()
         return MonitoringServiceControllerResult.Stopped
     }
 
-    fun refreshNow() {
+    override fun refreshNow() {
         serviceGateway.refreshNow()
     }
+}
+
+interface MonitoringServiceController {
+    suspend fun startAlwaysOnMonitoring(): MonitoringServiceControllerResult
+
+    suspend fun stopMonitoring(): MonitoringServiceControllerResult.Stopped
+
+    fun refreshNow()
 }
 
 sealed interface MonitoringServiceControllerResult {

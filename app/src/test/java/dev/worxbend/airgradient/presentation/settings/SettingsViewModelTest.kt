@@ -6,19 +6,27 @@ import dev.worxbend.airgradient.domain.error.AirGradientError
 import dev.worxbend.airgradient.domain.model.AirMeasureSnapshot
 import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
+import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
 import dev.worxbend.airgradient.domain.repository.AirGradientRepository
+import dev.worxbend.airgradient.domain.repository.MonitoringSettingsRepository
 import dev.worxbend.airgradient.domain.repository.SaveDeviceUrlResult
 import dev.worxbend.airgradient.domain.repository.SettingsRepository
 import dev.worxbend.airgradient.domain.sensors.DeviceUrlNormalizationResult
 import dev.worxbend.airgradient.domain.sensors.DeviceUrlNormalizer
 import dev.worxbend.airgradient.domain.usecase.GetCurrentMeasurementUseCase
+import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveDeviceUrlUseCase
+import dev.worxbend.airgradient.domain.usecase.SaveForegroundPollingIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveNotificationsEnabledUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveRefreshIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveThemeModeUseCase
 import dev.worxbend.airgradient.domain.usecase.TestDeviceConnectionUseCase
+import dev.worxbend.airgradient.service.MonitoringServiceController
+import dev.worxbend.airgradient.service.MonitoringServiceControllerResult
 import dev.worxbend.airgradient.testing.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -30,6 +38,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import java.time.Duration
 import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -149,20 +158,116 @@ class SettingsViewModelTest {
             viewModel.viewModelScope.cancel()
         }
 
+    @Test
+    fun `loads persisted monitoring settings into form state`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val monitoringRepository =
+                FakeMonitoringSettingsRepository(
+                    MonitoringSettings.default.copy(
+                        mode = MonitoringMode.AlwaysOnForegroundService,
+                        foregroundPollingIntervalSeconds = 120,
+                    ),
+                )
+            val viewModel = viewModel(monitoringSettingsRepository = monitoringRepository)
+            runCurrent()
+
+            val state = viewModel.uiState.value
+            assertEquals(MonitoringMode.AlwaysOnForegroundService, state.monitoringMode)
+            assertEquals(120, state.foregroundPollingIntervalSeconds)
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
+    fun `foreground polling interval selection persists supported value`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val monitoringRepository = FakeMonitoringSettingsRepository()
+            val viewModel = viewModel(monitoringSettingsRepository = monitoringRepository)
+            runCurrent()
+
+            viewModel.onForegroundPollingIntervalSelected(60)
+            runCurrent()
+
+            assertEquals(60, monitoringRepository.state.value.foregroundPollingIntervalSeconds)
+            assertEquals(60, viewModel.uiState.value.foregroundPollingIntervalSeconds)
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
+    fun `start always-on monitoring delegates to controller and reports success`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val controller = FakeMonitoringServiceController()
+            val viewModel = viewModel(monitoringServiceController = controller)
+            runCurrent()
+
+            viewModel.onAlwaysOnMonitoringEnabledChanged(true)
+            runCurrent()
+
+            assertEquals(listOf("start"), controller.actions)
+            assertEquals(MonitoringActionState.Started, viewModel.uiState.value.monitoringActionState)
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
+    fun `start always-on monitoring surfaces controller validation error`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val controller =
+                FakeMonitoringServiceController(
+                    startResult =
+                        MonitoringServiceControllerResult.Rejected(
+                            MonitoringPolicyValidationError.MissingDeviceUrl,
+                        ),
+                )
+            val viewModel = viewModel(monitoringServiceController = controller)
+            runCurrent()
+
+            viewModel.onAlwaysOnMonitoringEnabledChanged(true)
+            runCurrent()
+
+            assertEquals(
+                MonitoringActionState.Rejected(MonitoringPolicyValidationError.MissingDeviceUrl),
+                viewModel.uiState.value.monitoringActionState,
+            )
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
+    fun `stop monitoring delegates to controller and reports stopped`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val controller = FakeMonitoringServiceController()
+            val viewModel = viewModel(monitoringServiceController = controller)
+            runCurrent()
+
+            viewModel.onAlwaysOnMonitoringEnabledChanged(false)
+            runCurrent()
+
+            assertEquals(listOf("stop"), controller.actions)
+            assertEquals(MonitoringActionState.Stopped, viewModel.uiState.value.monitoringActionState)
+            viewModel.viewModelScope.cancel()
+        }
+
     private fun viewModel(
         settingsRepository: FakeSettingsRepository = FakeSettingsRepository(),
+        monitoringSettingsRepository: FakeMonitoringSettingsRepository = FakeMonitoringSettingsRepository(),
         airGradientRepository: FakeAirGradientRepository = FakeAirGradientRepository(),
+        monitoringServiceController: FakeMonitoringServiceController = FakeMonitoringServiceController(),
     ): SettingsViewModel {
         val dispatcher = mainDispatcherRule.dispatcher
         val getCurrentMeasurement = GetCurrentMeasurementUseCase(airGradientRepository)
 
         return SettingsViewModel(
-            observeSettings = ObserveSettingsUseCase(settingsRepository),
-            saveDeviceUrlUseCase = SaveDeviceUrlUseCase(settingsRepository),
-            saveRefreshInterval = SaveRefreshIntervalUseCase(settingsRepository),
-            saveNotificationsEnabled = SaveNotificationsEnabledUseCase(settingsRepository),
-            saveThemeMode = SaveThemeModeUseCase(settingsRepository),
-            testDeviceConnection = TestDeviceConnectionUseCase(getCurrentMeasurement),
+            useCases =
+                SettingsUseCases(
+                    observeSettings = ObserveSettingsUseCase(settingsRepository),
+                    observeMonitoringSettings = ObserveMonitoringSettingsUseCase(monitoringSettingsRepository),
+                    saveDeviceUrl = SaveDeviceUrlUseCase(settingsRepository),
+                    saveRefreshInterval = SaveRefreshIntervalUseCase(settingsRepository),
+                    saveForegroundPollingInterval =
+                        SaveForegroundPollingIntervalUseCase(monitoringSettingsRepository),
+                    saveNotificationsEnabled = SaveNotificationsEnabledUseCase(settingsRepository),
+                    saveThemeMode = SaveThemeModeUseCase(settingsRepository),
+                    testDeviceConnection = TestDeviceConnectionUseCase(getCurrentMeasurement),
+                ),
+            monitoringServiceController = monitoringServiceController,
             dispatchers =
                 AppDispatchers(
                     io = dispatcher,
@@ -203,6 +308,56 @@ class SettingsViewModelTest {
         private fun saveServerUrl(serverUrl: String?): SaveDeviceUrlResult.Saved {
             settingsState.value = settingsState.value.copy(serverUrl = serverUrl)
             return SaveDeviceUrlResult.Saved(serverUrl)
+        }
+    }
+
+    private class FakeMonitoringSettingsRepository(
+        initialSettings: MonitoringSettings = MonitoringSettings.default,
+    ) : MonitoringSettingsRepository {
+        val state = MutableStateFlow(initialSettings)
+
+        override fun observeMonitoringSettings(): Flow<MonitoringSettings> = state
+
+        override suspend fun getMonitoringSettings(): MonitoringSettings = state.value
+
+        override suspend fun updateMonitoringMode(mode: MonitoringMode) {
+            state.value = state.value.copy(mode = mode)
+        }
+
+        override suspend fun updateForegroundPollingInterval(interval: Duration) {
+            state.value =
+                state.value.copy(
+                    foregroundPollingIntervalSeconds =
+                        MonitoringSettings.requireSupportedForegroundInterval(interval),
+                )
+        }
+
+        override suspend fun updatePeriodicBackgroundInterval(interval: Duration) {
+            state.value =
+                state.value.copy(
+                    periodicBackgroundIntervalMinutes =
+                        MonitoringSettings.requireSupportedPeriodicInterval(interval),
+                )
+        }
+    }
+
+    private class FakeMonitoringServiceController(
+        private val startResult: MonitoringServiceControllerResult = MonitoringServiceControllerResult.Started,
+    ) : MonitoringServiceController {
+        val actions = mutableListOf<String>()
+
+        override suspend fun startAlwaysOnMonitoring(): MonitoringServiceControllerResult {
+            actions += "start"
+            return startResult
+        }
+
+        override suspend fun stopMonitoring(): MonitoringServiceControllerResult.Stopped {
+            actions += "stop"
+            return MonitoringServiceControllerResult.Stopped
+        }
+
+        override fun refreshNow() {
+            actions += "refresh"
         }
     }
 

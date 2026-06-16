@@ -17,14 +17,17 @@ import dev.worxbend.airgradient.domain.repository.MonitoringSettingsRepository
 import dev.worxbend.airgradient.domain.repository.NotificationStateRepository
 import dev.worxbend.airgradient.domain.repository.SettingsRepository
 import dev.worxbend.airgradient.domain.usecase.GetCurrentMeasurementUseCase
+import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.RefreshDashboardUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveDeviceUrlUseCase
+import dev.worxbend.airgradient.domain.usecase.SaveForegroundPollingIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveNotificationsEnabledUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveRefreshIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveThemeModeUseCase
 import dev.worxbend.airgradient.domain.usecase.TestDeviceConnectionUseCase
 import dev.worxbend.airgradient.presentation.dashboard.DashboardViewModel
+import dev.worxbend.airgradient.presentation.settings.SettingsUseCases
 import dev.worxbend.airgradient.presentation.settings.SettingsViewModel
 import dev.worxbend.airgradient.service.AirQualityMonitoringServiceController
 import dev.worxbend.airgradient.service.AndroidMonitoringNotificationPermissionChecker
@@ -87,12 +90,20 @@ class AppGraph(
     fun settingsViewModelFactory(): ViewModelProvider.Factory =
         viewModelFactory {
             SettingsViewModel(
-                observeSettings = ObserveSettingsUseCase(settingsRepository),
-                saveDeviceUrlUseCase = SaveDeviceUrlUseCase(settingsRepository),
-                saveRefreshInterval = SaveRefreshIntervalUseCase(settingsRepository),
-                saveNotificationsEnabled = SaveNotificationsEnabledUseCase(settingsRepository),
-                saveThemeMode = SaveThemeModeUseCase(settingsRepository),
-                testDeviceConnection = TestDeviceConnectionUseCase(getCurrentMeasurement),
+                useCases =
+                    SettingsUseCases(
+                        observeSettings = ObserveSettingsUseCase(settingsRepository),
+                        observeMonitoringSettings =
+                            ObserveMonitoringSettingsUseCase(monitoringSettingsRepository),
+                        saveDeviceUrl = SaveDeviceUrlUseCase(settingsRepository),
+                        saveRefreshInterval = SaveRefreshIntervalUseCase(settingsRepository),
+                        saveForegroundPollingInterval =
+                            SaveForegroundPollingIntervalUseCase(monitoringSettingsRepository),
+                        saveNotificationsEnabled = SaveNotificationsEnabledUseCase(settingsRepository),
+                        saveThemeMode = SaveThemeModeUseCase(settingsRepository),
+                        testDeviceConnection = TestDeviceConnectionUseCase(getCurrentMeasurement),
+                    ),
+                monitoringServiceController = monitoringServiceController,
                 dispatchers = dispatchers,
             )
         }

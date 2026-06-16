@@ -1352,6 +1352,28 @@ Behavior notes:
 - Smart alert cooldown/recovery state is shared with dashboard refresh through NotificationStateRepository.
 ```
 
+### Iteration 23 — Settings Foreground Monitoring Controls
+
+Implemented the first user-facing always-on monitoring controls:
+
+```text
+- SettingsViewModel now observes persisted monitoring settings alongside app settings
+- added use-case wrappers for observing monitoring settings and saving the foreground polling interval
+- AirQualityMonitoringServiceController now exposes a testable MonitoringServiceController interface
+- SettingsRoute requests POST_NOTIFICATIONS before starting always-on monitoring on Android 13+
+- SettingsScreen includes an opt-in Monitoring section with status, foreground polling interval chips, Start always-on, Stop monitoring, and validation messages
+- foreground monitoring intervals are limited to 30 sec, 1 min, 2 min, and 5 min in the UI
+- ViewModel and Compose UI tests cover monitoring settings loading, interval persistence, start/stop delegation, validation errors, and user-visible controls
+```
+
+Behavior notes:
+
+```text
+- WorkManager battery-friendly monitoring remains deferred and is not exposed as a selectable mode yet.
+- Dashboard monitoring status/start/stop controls remain deferred.
+- The settings screen starts/stops monitoring through the controller; Composables still do not construct service intents.
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

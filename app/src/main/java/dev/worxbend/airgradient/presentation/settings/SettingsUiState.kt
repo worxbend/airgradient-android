@@ -3,6 +3,9 @@ package dev.worxbend.airgradient.presentation.settings
 import dev.worxbend.airgradient.domain.error.AirGradientError
 import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
+import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
 
 data class SettingsUiState(
     val deviceUrlInput: String = "",
@@ -11,9 +14,29 @@ data class SettingsUiState(
     val notificationsEnabled: Boolean = false,
     val notificationPermissionDenied: Boolean = false,
     val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    val monitoringMode: MonitoringMode = MonitoringMode.Off,
+    val foregroundPollingIntervalSeconds: Int =
+        MonitoringSettings.DEFAULT_FOREGROUND_POLLING_INTERVAL_SECONDS,
+    val monitoringActionState: MonitoringActionState = MonitoringActionState.Idle,
     val saveState: DeviceUrlSaveState = DeviceUrlSaveState.Idle,
     val connectionTestState: ConnectionTestState = ConnectionTestState.Idle,
 )
+
+sealed interface MonitoringActionState {
+    data object Idle : MonitoringActionState
+
+    data object Starting : MonitoringActionState
+
+    data object Started : MonitoringActionState
+
+    data object Stopping : MonitoringActionState
+
+    data object Stopped : MonitoringActionState
+
+    data class Rejected(
+        val error: MonitoringPolicyValidationError,
+    ) : MonitoringActionState
+}
 
 sealed interface DeviceUrlPreview {
     data object Empty : DeviceUrlPreview

@@ -25,6 +25,14 @@ fun SettingsRoute(
                 viewModel.onNotificationPermissionDenied()
             }
         }
+    val monitoringPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                viewModel.onAlwaysOnMonitoringEnabledChanged(true)
+            } else {
+                viewModel.onMonitoringPermissionDenied()
+            }
+        }
 
     SettingsScreen(
         state = state.value,
@@ -43,6 +51,15 @@ fun SettingsRoute(
                     }
                 },
                 onThemeModeSelected = viewModel::onThemeModeSelected,
+                onForegroundPollingIntervalSelected = viewModel::onForegroundPollingIntervalSelected,
+                onStartAlwaysOnMonitoring = {
+                    if (hasNotificationPermission(context)) {
+                        viewModel.onAlwaysOnMonitoringEnabledChanged(true)
+                    } else {
+                        monitoringPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                },
+                onStopMonitoring = { viewModel.onAlwaysOnMonitoringEnabledChanged(false) },
             ),
     )
 }
