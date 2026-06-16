@@ -78,6 +78,10 @@ Always-on monitoring is hosted by `service/AirQualityMonitoringService`, which i
 foreground service. The service starts foreground immediately with a persistent monitoring notification, owns a
 structured coroutine scope, and delegates each device check to `MonitoringLoopRunner`.
 
+Persistent monitoring notification copy is formatted by `MonitoringStatusTextFormatter`, keeping user-facing service
+status text testable without Android framework dependencies. The notification shows concise local date/time labels for
+the last completed check and last successful reading instead of raw timestamp strings.
+
 `AirQualityMonitoringServiceController` is the only app-facing gateway for start, stop, and refresh-now commands. It
 validates that a device URL is configured and that Android 13+ notification permission is available before starting
 foreground monitoring. Settings and dashboard UI routes request notification permission through the route layer, then

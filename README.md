@@ -46,6 +46,8 @@ Notifications are disabled by default. When enabled, Android 13+ devices request
 
 Always-on monitoring is opt-in from Settings or the dashboard monitoring card. It requires a configured device URL and notification permission on Android 13+, starts a visible foreground service, and supports 30 second, 1 minute, 2 minute, and 5 minute polling intervals.
 
+The persistent monitoring notification shows the latest completed check and last successful reading with concise local time labels, plus Refresh now and Stop actions.
+
 Battery-friendly monitoring is opt-in from Settings. It uses WorkManager with a connected-network constraint and supports 15 minute, 30 minute, and 1 hour intervals. Android schedules this work inexactly, so checks may run at or after the selected interval rather than in real time.
 
 ## Privacy

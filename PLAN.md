@@ -1600,6 +1600,24 @@ Validation passed:
 ./gradlew clean build
 ```
 
+### Iteration 33 — Persistent Monitoring Notification Copy
+
+Implemented a focused persistent-notification readability slice:
+
+```text
+- extracted always-on monitoring notification title/body formatting into a testable formatter
+- replaced raw Instant strings in the persistent notification with concise local date/time labels
+- replaced enum stop reasons in stopped-state copy with user-facing phrases
+- added unit tests for active, first-check-pending, and stopped monitoring notification text
+```
+
+Behavior notes:
+
+```text
+- The persistent notification action model is unchanged: Open app, Refresh now, and Stop still target the existing service intents.
+- Dashboard timestamp labels remain unchanged in this slice.
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
