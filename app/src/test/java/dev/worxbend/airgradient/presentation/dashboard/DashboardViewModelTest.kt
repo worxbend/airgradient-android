@@ -231,6 +231,36 @@ class DashboardViewModelTest {
         }
 
     @Test
+    fun `refresh failure dispatches stale data notification when last reading is old`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val dispatcher = RecordingNotificationMessageDispatcher()
+            val repository =
+                FakeAirGradientRepository(
+                    results =
+                        ArrayDeque(
+                            listOf(
+                                AirGradientFetchResult.Success(firstSnapshot),
+                                AirGradientFetchResult.Failure(AirGradientError.Timeout),
+                            ),
+                        ),
+                )
+            val viewModel =
+                viewModel(
+                    settings = configuredSettings.copy(notificationsEnabled = true),
+                    repository = repository,
+                    notificationMessageDispatcher = dispatcher,
+                    now = Instant.parse("2026-06-16T00:11:00Z"),
+                )
+            runCurrent()
+
+            viewModel.refresh()
+            runCurrent()
+
+            assertEquals(listOf(NotificationType.StaleData), dispatcher.messages.map { it.type })
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
     fun `configured dashboard includes monitoring summary`() =
         runTest(mainDispatcherRule.dispatcher) {
             val viewModel =
@@ -333,6 +363,7 @@ class DashboardViewModelTest {
             ),
         notificationStateRepository: NotificationStateRepository = FakeNotificationStateRepository(),
         notificationMessageDispatcher: NotificationMessageDispatcher = RecordingNotificationMessageDispatcher(),
+        now: Instant = Instant.parse("2026-06-16T00:00:00Z"),
     ): DashboardViewModel {
         val dispatcher = mainDispatcherRule.dispatcher
         return DashboardViewModel(
@@ -351,7 +382,7 @@ class DashboardViewModelTest {
                     notificationDecisionEngine = NotificationDecisionEngine(),
                     notificationMessageDispatcher = notificationMessageDispatcher,
                 ),
-            clockProvider = ClockProvider { Instant.parse("2026-06-16T00:00:00Z") },
+            clockProvider = ClockProvider { now },
             dispatchers =
                 AppDispatchers(
                     io = dispatcher,
@@ -494,8 +525,10 @@ class DashboardViewModelTest {
         override fun refreshNow() = Unit
     }
 
-    private class FakeNotificationStateRepository : NotificationStateRepository {
-        var state: NotificationState = NotificationState.default
+    private class FakeNotificationStateRepository(
+        initialState: NotificationState = NotificationState.default,
+    ) : NotificationStateRepository {
+        var state: NotificationState = initialState
             private set
 
         override fun observeNotificationState(): Flow<NotificationState> = MutableStateFlow(state)

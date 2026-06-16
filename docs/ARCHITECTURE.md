@@ -61,9 +61,11 @@ service loop, and WorkManager checks all honor the same minimum severity, recove
 preferences.
 
 `data/notifications/NotificationStateRepositoryImpl` stores notification decision state in a dedicated DataStore file so
-cooldown and recovery state survive process restart. `DashboardViewModel` now uses the same decision engine and state
-repository used by dashboard refreshes, the foreground service, and the WorkManager worker. Disabling notifications or clearing the
-device URL clears the persisted decision state.
+cooldown and recovery state survive process restart. `DashboardViewModel`, the foreground service, and the WorkManager
+worker all use the same decision engine and state repository. Successful checks update recovery/cooldown state, while
+failed checks evaluate unreachable-device alerts and stale-data alerts from the same persisted state. Unreachable-device
+alerts take priority on the repeated-failure threshold; otherwise a failed check can notify that the last successful
+reading is stale. Disabling notifications or clearing the device URL clears the persisted decision state.
 
 Android delivery is isolated in `data/notifications/AndroidNotificationMessageDispatcher`. It creates the air-quality
 alert channel, checks `POST_NOTIFICATIONS` on Android 13+, uses deterministic notification IDs by message type/key, and

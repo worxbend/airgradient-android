@@ -1570,6 +1570,36 @@ Behavior notes:
 - Source-derived alert behavior remains covered by NotificationDecisionEngine, NotificationCooldown, dashboard, and monitoring-loop tests.
 ```
 
+### Iteration 32 — Stale Data Notification Runtime Wiring
+
+Implemented the stale-data alert trigger path that already existed in the shared notification decision engine:
+
+```text
+- dashboard refresh failures now evaluate stale-data alerts after repeated-unreachable-device evaluation
+- foreground-service and WorkManager monitoring failures now use the same stale-data fallback through MonitoringLoopRunner
+- repeated device-unreachable notifications take priority when their failure threshold is met
+- stale-data decisions preserve the persisted fetch-failure count from NotificationState
+- unit tests cover stale-data dispatch from dashboard failures and monitoring failures, plus unreachable-alert priority
+- README, architecture, and development docs now document active stale-data notification behavior
+```
+
+Behavior notes:
+
+```text
+- stale-data alerts are emitted only when smart notifications are enabled and a previous successful reading exists in NotificationState
+- the stale-data cooldown remains the shared notification cooldown from NotificationDecisionEngine
+```
+
+Validation passed:
+
+```bash
+./gradlew :app:testDebugUnitTest --tests dev.worxbend.airgradient.service.MonitoringLoopRunnerTest
+./gradlew :app:testDebugUnitTest --tests dev.worxbend.airgradient.presentation.dashboard.DashboardViewModelTest
+./gradlew test ktlintCheck detekt lint
+./gradlew assembleDebugAndroidTest assembleRelease
+./gradlew clean build
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

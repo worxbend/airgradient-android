@@ -42,7 +42,7 @@ The application will fetch AirGradient readings from:
 
 Most AirGradient local-server installs use plain HTTP on the local network. The Android manifest deliberately enables cleartext traffic so addresses such as `http://192.168.1.201` and bare inputs such as `192.168.1.201` work after normalization.
 
-Notifications are disabled by default. When enabled, Android 13+ devices request `POST_NOTIFICATIONS`; alerts are evaluated from foreground dashboard refreshes, always-on monitoring, and battery-friendly checks through the persisted notification decision engine. Users can choose Warning or Critical as the minimum alert severity and can disable recovery or device-unreachable alerts. Cooldown and recovery state survive app process restarts.
+Notifications are disabled by default. When enabled, Android 13+ devices request `POST_NOTIFICATIONS`; alerts are evaluated from foreground dashboard refreshes, always-on monitoring, and battery-friendly checks through the persisted notification decision engine. Users can choose Warning or Critical as the minimum alert severity and can disable recovery or device-unreachable alerts. Cooldown, stale-data, and recovery state survive app process restarts.
 
 Always-on monitoring is opt-in from Settings or the dashboard monitoring card. It requires a configured device URL and notification permission on Android 13+, starts a visible foreground service, and supports 30 second, 1 minute, 2 minute, and 5 minute polling intervals.
 

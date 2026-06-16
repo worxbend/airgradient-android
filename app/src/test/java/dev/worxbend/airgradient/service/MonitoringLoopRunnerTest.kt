@@ -224,6 +224,65 @@ class MonitoringLoopRunnerTest {
         }
 
     @Test
+    fun `failed tick dispatches stale data notification when last reading is old`() =
+        runTest {
+            val repository =
+                FakeAirGradientRepository(
+                    result = AirGradientFetchResult.Failure(AirGradientError.Timeout),
+                )
+            val stateRepository =
+                InMemoryNotificationStateRepository(
+                    initialState =
+                        NotificationState.default.copy(
+                            lastSuccessfulReadAt = now.minusSeconds(STALE_DATA_SECONDS),
+                        ),
+                )
+            val dispatcher = RecordingNotificationMessageDispatcher()
+            val runner =
+                runner(
+                    repository = repository,
+                    stateRepository = stateRepository,
+                    dispatcher = dispatcher,
+                )
+
+            val result = runner.runOneTick(settings(notificationsEnabled = true))
+
+            val failure = result as MonitoringTickResult.Failure
+            assertEquals(1, failure.consecutiveFailureCount)
+            assertEquals(1, stateRepository.state.consecutiveFailureCount)
+            assertEquals(NotificationType.StaleData, dispatcher.messages.single().type)
+        }
+
+    @Test
+    fun `device unreachable notification takes priority over stale data on threshold failure`() =
+        runTest {
+            val repository =
+                FakeAirGradientRepository(
+                    result = AirGradientFetchResult.Failure(AirGradientError.Timeout),
+                )
+            val stateRepository =
+                InMemoryNotificationStateRepository(
+                    initialState =
+                        NotificationState.default.copy(
+                            lastSuccessfulReadAt = now.minusSeconds(STALE_DATA_SECONDS),
+                            consecutiveFailureCount = 2,
+                        ),
+                )
+            val dispatcher = RecordingNotificationMessageDispatcher()
+            val runner =
+                runner(
+                    repository = repository,
+                    stateRepository = stateRepository,
+                    dispatcher = dispatcher,
+                )
+
+            runner.runOneTick(settings(notificationsEnabled = true))
+
+            assertEquals(3, stateRepository.state.consecutiveFailureCount)
+            assertEquals(listOf(NotificationType.DeviceUnreachable), dispatcher.messages.map { it.type })
+        }
+
+    @Test
     fun `device unreachable preference suppresses failure notification`() =
         runTest {
             val repository =
@@ -386,6 +445,7 @@ class MonitoringLoopRunnerTest {
 
     private companion object {
         val now: Instant = Instant.parse("2026-06-16T00:00:00Z")
+        private const val STALE_DATA_SECONDS = 11L * 60L
 
         val healthySnapshot =
             AirMeasureSnapshot(

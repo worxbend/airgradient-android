@@ -263,12 +263,24 @@ class DashboardViewModel(
                 )
             }
         evaluateNotificationDecision(settings) { state, policy ->
-            notificationDependencies.notificationDecisionEngine.evaluateFetchFailure(
-                error = error,
-                now = clockProvider.now(),
-                state = state,
-                policy = policy,
-            )
+            val now = clockProvider.now()
+            val failureDecision =
+                notificationDependencies.notificationDecisionEngine.evaluateFetchFailure(
+                    error = error,
+                    now = now,
+                    state = state,
+                    policy = policy,
+                )
+
+            if (failureDecision is NotificationDecision.Notify) {
+                failureDecision
+            } else {
+                notificationDependencies.notificationDecisionEngine.evaluateStaleData(
+                    now = now,
+                    state = failureDecision.nextState,
+                    policy = policy,
+                )
+            }
         }
     }
 

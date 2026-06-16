@@ -108,14 +108,14 @@ class MonitoringLoopRunner(
         }
 
         val state = notificationStateRepository.getNotificationState()
-        val decision =
+        val failureDecision =
             notificationDecisionEngine.evaluateFetchFailure(
                 error = result.error,
                 now = checkedAt,
                 state = state,
                 policy = NotificationPolicyFactory.fromSettings(settings),
             )
-        persistAndDispatch(decision)
+        persistAndDispatchFailureDecision(failureDecision, checkedAt, settings)
 
         return MonitoringTickResult.Failure(
             error = result.error,
@@ -133,5 +133,24 @@ class MonitoringLoopRunner(
         if (decision is NotificationDecision.Notify) {
             notificationMessageDispatcher.show(decision.message)
         }
+    }
+
+    private suspend fun persistAndDispatchFailureDecision(
+        failureDecision: NotificationDecision,
+        checkedAt: Instant,
+        settings: AppSettings,
+    ) {
+        if (failureDecision is NotificationDecision.Notify) {
+            persistAndDispatch(failureDecision)
+            return
+        }
+
+        val staleDecision =
+            notificationDecisionEngine.evaluateStaleData(
+                now = checkedAt,
+                state = failureDecision.nextState,
+                policy = NotificationPolicyFactory.fromSettings(settings),
+            )
+        persistAndDispatch(staleDecision)
     }
 }
