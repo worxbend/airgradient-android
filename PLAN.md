@@ -1044,7 +1044,7 @@ Behavior notes:
 ```text
 - Screen-level composables receive state and callbacks only; networking and persistence remain outside Compose.
 - The current MainActivity still uses the no-argument DashboardScreen fallback, which renders the unconfigured state until Phase 7 navigation/settings wiring or DI/app graph wiring is introduced.
-- Pull-to-refresh is not implemented yet; Phase 6 currently provides app-bar/manual refresh callbacks and visual refreshing state.
+- Pull-to-refresh was deferred in Phase 6 and implemented in Iteration 11; Phase 6 originally provided app-bar/manual refresh callbacks and visual refreshing state.
 - Dashboard components were split under presentation/dashboard/components to keep detekt complexity limits passing.
 ```
 
@@ -1077,7 +1077,7 @@ Behavior notes:
 - Hilt is still deferred; the app uses a small manual graph because current dependency wiring remains simple and testable.
 - Test connection fetches the normalized /measures/current endpoint without persisting the URL.
 - Notifications remain a persisted foreground setting only; Android notification channels, runtime permission, alert policy, and optional background checks remain Phase 8/9 work.
-- Pull-to-refresh remains unimplemented; dashboard manual refresh is available through the app bar.
+- Pull-to-refresh was still deferred in Phase 7 and implemented in Iteration 11; dashboard manual refresh was available through the app bar at this point.
 ```
 
 Validation passed:
@@ -1139,6 +1139,26 @@ Behavior notes:
 ```text
 - Cleartext support was already present in AndroidManifest.xml through android:usesCleartextTraffic="true"; this iteration documents the product reason rather than changing networking behavior.
 - No WorkManager/background polling was added because foreground notification evaluation is sufficient for the implemented Phase 8 scope.
+```
+
+### Iteration 11 — Dashboard Pull-To-Refresh
+
+Implemented the remaining foreground dashboard refresh gesture:
+
+```text
+- DashboardScreen now wraps configured dashboard states in Material 3 PullToRefreshBox
+- pull-to-refresh uses the same DashboardViewModel.refresh() path as the app-bar refresh action
+- the gesture is enabled for content, stale-content warning, and error states
+- unconfigured and initial-loading states do not expose a pull-to-refresh gesture
+- the pull indicator follows the existing DashboardUiState isRefreshing flag for successful and stale-content states
+```
+
+Validation passed:
+
+```bash
+./gradlew test ktlintCheck detekt lint
+./gradlew clean build
+./gradlew assembleRelease
 ```
 
 ### Phase 0 — Reference Scan and PLAN.md Update

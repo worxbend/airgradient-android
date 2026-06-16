@@ -2,7 +2,7 @@
 
 Native Kotlin and Jetpack Compose Android application for local AirGradient-compatible devices.
 
-The app is being implemented incrementally from `PLAN.md`. The current codebase contains the Android project shell, Compose theme, quality tooling, source-derived sensor logic, the local `/measures/current` network repository, DataStore-backed settings persistence, state-driven dashboard UI, settings/navigation wiring, and foreground air-quality notifications.
+The app is being implemented incrementally from `PLAN.md`. The current codebase contains the Android project shell, Compose theme, quality tooling, source-derived sensor logic, the local `/measures/current` network repository, DataStore-backed settings persistence, state-driven dashboard UI with app-bar and pull-to-refresh actions, settings/navigation wiring, and foreground air-quality notifications.
 
 ## Requirements
 

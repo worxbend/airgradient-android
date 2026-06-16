@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -105,7 +106,7 @@ private fun DashboardScaffold(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val canRefresh = state !is DashboardUiState.Unconfigured && state !is DashboardUiState.Loading
+    val canRefresh = state.canRefresh()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -159,7 +160,17 @@ private fun DashboardScaffold(
                         .fillMaxSize()
                         .background(backgroundBrush()),
             ) {
-                content()
+                if (canRefresh) {
+                    PullToRefreshBox(
+                        isRefreshing = state.isPullRefreshing(),
+                        onRefresh = onRefresh,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        content()
+                    }
+                } else {
+                    content()
+                }
             }
         }
     }
@@ -172,6 +183,30 @@ private fun DashboardUiState.headerStatusLabel(): String =
         is DashboardUiState.Content -> overallStatus.label
         is DashboardUiState.ContentWithWarning -> warning.message
         is DashboardUiState.Error -> reason.title
+    }
+
+private fun DashboardUiState.canRefresh(): Boolean =
+    when (this) {
+        DashboardUiState.Unconfigured,
+        DashboardUiState.Loading,
+        -> false
+
+        is DashboardUiState.Content,
+        is DashboardUiState.ContentWithWarning,
+        is DashboardUiState.Error,
+        -> true
+    }
+
+private fun DashboardUiState.isPullRefreshing(): Boolean =
+    when (this) {
+        is DashboardUiState.Content -> isRefreshing
+
+        is DashboardUiState.ContentWithWarning -> isRefreshing
+
+        DashboardUiState.Unconfigured,
+        DashboardUiState.Loading,
+        is DashboardUiState.Error,
+        -> false
     }
 
 @Composable
