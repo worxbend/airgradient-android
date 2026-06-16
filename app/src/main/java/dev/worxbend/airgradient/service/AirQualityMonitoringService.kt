@@ -11,6 +11,7 @@ import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
 import dev.worxbend.airgradient.domain.monitoring.MonitoringStatus
 import dev.worxbend.airgradient.domain.monitoring.MonitoringStopReason
+import dev.worxbend.airgradient.domain.monitoring.MonitoringTickResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -31,6 +32,7 @@ class AirQualityMonitoringService : Service() {
     private var monitoringJob: Job? = null
     private var foregroundStarted = false
     private var statusSnapshot = MonitoringStatusSnapshot()
+    private val adaptiveBackoff = AdaptivePollingBackoff()
 
     override fun onCreate() {
         super.onCreate()
@@ -100,20 +102,18 @@ class AirQualityMonitoringService : Service() {
     private fun startMonitoringLoop() {
         if (monitoringJob?.isActive == true) return
 
+        adaptiveBackoff.reset()
         monitoringJob =
             serviceScope.launch {
                 while (isActive) {
-                    val shouldContinue = refreshOnceFromCurrentSettings()
+                    val tickResult = refreshOnceFromCurrentSettings() ?: break
 
-                    if (!shouldContinue) {
-                        break
-                    }
-
-                    val interval =
+                    val configuredInterval =
                         appGraph.monitoringSettingsRepository
                             .getMonitoringSettings()
                             .foregroundPollingInterval
-                    delay(interval.toMillis())
+                    val effectiveDelay = adaptiveBackoff.updateAndGetDelay(tickResult, configuredInterval)
+                    delay(effectiveDelay.toMillis())
                 }
             }
     }
@@ -124,7 +124,7 @@ class AirQualityMonitoringService : Service() {
         }
     }
 
-    private suspend fun refreshOnceFromCurrentSettings(): Boolean {
+    private suspend fun refreshOnceFromCurrentSettings(): MonitoringTickResult? {
         val appSettings = appGraph.settingsRepository.settings.first()
         val monitoringSettings = appGraph.monitoringSettingsRepository.getMonitoringSettings()
         val stopReason =
@@ -144,19 +144,20 @@ class AirQualityMonitoringService : Service() {
 
         return if (stopReason == null) {
             runConfiguredRefresh(appSettings, monitoringSettings)
-            true
         } else {
             stopMonitoring(stopReason)
-            false
+            null
         }
     }
 
     private suspend fun runConfiguredRefresh(
         appSettings: AppSettings,
         monitoringSettings: MonitoringSettings,
-    ) {
-        statusSnapshot = statusSnapshot.after(loopRunner.runOneTick(appSettings))
+    ): MonitoringTickResult {
+        val result = loopRunner.runOneTick(appSettings)
+        statusSnapshot = statusSnapshot.after(result)
         updateActiveStatus(monitoringSettings)
+        return result
     }
 
     private fun updateActiveStatus(monitoringSettings: MonitoringSettings) {

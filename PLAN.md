@@ -1713,6 +1713,42 @@ Behavior notes:
   notify() call is skipped when content is unchanged
 ```
 
+### Iteration 40 — Adaptive Polling Backoff
+
+Implemented Phase 6 of the battery optimization plan — in-memory adaptive backoff that reduces wakeup frequency when air quality is stable or the device is repeatedly unreachable:
+
+```text
+- AdaptivePollingBackoff tracks consecutive GOOD readings and consecutive fetch failures
+- backoff starts after 3 consecutive GOOD readings: delay doubles from the configured interval up to 15 minutes
+- backoff starts after 3 consecutive failures: delay doubles from the configured interval up to 15 minutes
+- any non-GOOD reading (MODERATE, WARNING, CRITICAL, UNKNOWN) resets good backoff to the configured interval
+- a successful reading resets failure backoff
+- skipped ticks (e.g., overlap guard) return the configured interval without changing backoff state
+- backoff is purely in-memory and resets when startMonitoringLoop() is called
+- AirQualityMonitoringService wires in AdaptivePollingBackoff and feeds each tick result into it
+- refreshOnceFromCurrentSettings() now returns MonitoringTickResult? (null means service should stop)
+- 13 unit tests cover at-threshold doubling, capping at MAX_BACKOFF, warning/critical reset,
+  failure backoff, recovery from failures, skipped ticks, reset, UNKNOWN not triggering backoff,
+  and 30-second base interval behavior
+```
+
+Behavior notes:
+
+```text
+- only SensorStatus.GOOD triggers the good backoff path; UNKNOWN and MODERATE do not
+- the 15-minute cap matches the battery-friendly WorkManager interval minimum, so backed-off
+  always-on monitoring and battery-friendly periodic monitoring converge at the same frequency
+- the threshold of 3 means users with stable good air see fewer than one check per 10 minutes
+  at the default 5-minute interval after a short warmup period
+```
+
+Validation passed:
+
+```bash
+./gradlew test ktlintCheck detekt lint
+./gradlew clean build assembleRelease
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
@@ -3750,9 +3786,9 @@ git commit -m "perf: reduce monitoring persistence writes"
 git push
 ```
 
-## Phase 6 — Add Simple Adaptive Backoff
+## Phase 6 — Add Simple Adaptive Backoff ✓ (Iteration 40)
 
-Implement basic backoff to reduce checks when nothing important changes.
+Implemented in Iteration 40. AdaptivePollingBackoff tracks consecutive GOOD/failure counts and backs off up to 15 minutes.
 
 Rules:
 
