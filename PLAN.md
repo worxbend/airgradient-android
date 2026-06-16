@@ -1123,6 +1123,24 @@ Validation passed:
 ./gradlew clean build
 ```
 
+### Iteration 10 — Phase 10 Release Readiness Slice
+
+Implemented a focused startup and documentation polish slice:
+
+```text
+- Android 12+ splash-window styling now uses the existing AirGradient launcher foreground, light/dark splash backgrounds, and semantic icon background color
+- launcher background color now has a dark-mode resource variant
+- README documents local AirGradient setup, deliberate local HTTP cleartext support, notification defaults, and release assembly
+- development and protocol docs document release validation, local HTTP behavior, Android 12+ splash behavior, and Android 13+ notification permission behavior
+```
+
+Behavior notes:
+
+```text
+- Cleartext support was already present in AndroidManifest.xml through android:usesCleartextTraffic="true"; this iteration documents the product reason rather than changing networking behavior.
+- No WorkManager/background polling was added because foreground notification evaluation is sufficient for the implemented Phase 8 scope.
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

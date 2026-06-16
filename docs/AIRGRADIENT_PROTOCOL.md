@@ -6,6 +6,8 @@ The Android app targets AirGradient-compatible local HTTP devices exposing:
 GET /measures/current
 ```
 
+Configured device URLs are normalized to a base URL before the endpoint is appended. Bare hosts default to `http://` because the reference local-server workflow and typical AirGradient devices are LAN-only HTTP services. Android cleartext traffic is intentionally enabled for this product scope; no cloud proxy or third-party service is used.
+
 Reference repository analysis in `PLAN.md` documents the accepted JSON aliases, threshold logic, AQI fallback behavior, trend behavior, notification policy, and URL normalization rules.
 
 Implemented in the current codebase:
