@@ -18,4 +18,4 @@ Implemented in the current codebase:
 - `TrendCalculator` compares the current reading with the previous successful reading and formats stable/up/down deltas.
 - `AirGradientMeasureMapper` parses the reference aliases, numeric strings, and nested payloads; prefers compensated temperature and humidity; ignores malformed optional sensor values; and infers TVOC/NOx units from `Index` aliases.
 - `AirGradientRemoteDataSource` requests `/measures/current` through Retrofit/OkHttp and maps non-2xx, timeout, unreachable, invalid URL, and malformed JSON responses to typed failures.
-- `AirQualityAlertPolicy` applies source-derived alert thresholds, consecutive-reading requirements, offline failure behavior, cooldown, escalation, and recovery semantics for optional Android notifications.
+- `NotificationDecisionEngine` applies the source-derived notification behavior through persisted cooldown/recovery state and powers dashboard, foreground-service, and WorkManager alert decisions.

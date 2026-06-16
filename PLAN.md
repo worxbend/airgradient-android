@@ -1323,7 +1323,7 @@ Behavior notes:
 
 ```text
 - Background polling remains deferred; notifications are still triggered only by foreground dashboard refreshes.
-- The older AirQualityAlertPolicy remains for source-derived reference policy tests until a dedicated cleanup removes it.
+- The older AirQualityAlertPolicy remained for source-derived reference policy tests until Iteration 31 removed it.
 ```
 
 ### Iteration 22 — Foreground Monitoring Service Foundation
@@ -1549,6 +1549,25 @@ Validation passed:
 ./gradlew test ktlintCheck detekt lint
 ./gradlew assembleDebugAndroidTest assembleRelease
 ./gradlew clean build
+```
+
+### Iteration 31 — Legacy Alert Policy Cleanup
+
+Removed the superseded in-memory notification policy path:
+
+```text
+- deleted AirQualityAlertPolicy and its alert-specific domain models
+- deleted the legacy AndroidAirQualityAlertNotifier adapter
+- moved NotificationMessageDispatcher into its own domain contract file
+- removed tests that only covered the unused legacy policy
+- updated protocol and architecture docs to point at NotificationDecisionEngine as the single active notification path
+```
+
+Behavior notes:
+
+```text
+- Dashboard refresh, foreground monitoring, and WorkManager monitoring continue to share NotificationDecisionEngine, NotificationStateRepository, and AndroidNotificationMessageDispatcher.
+- Source-derived alert behavior remains covered by NotificationDecisionEngine, NotificationCooldown, dashboard, and monitoring-loop tests.
 ```
 
 ### Phase 0 — Reference Scan and PLAN.md Update
@@ -2758,7 +2777,7 @@ presentation/settings/components/
 presentation/theme/
 ```
 
-Current tests cover repository mapping/fetching, settings persistence, sensor thresholds, AQI fallback, trends, alert policy, dashboard ViewModel behavior, and settings ViewModel behavior.
+Current tests cover repository mapping/fetching, settings persistence, sensor thresholds, AQI fallback, trends, notification decision behavior, dashboard ViewModel behavior, and settings ViewModel behavior.
 
 ### Current Architecture Layers
 
@@ -2782,31 +2801,30 @@ This architecture can support background monitoring, but the service/worker entr
 Existing classes:
 
 ```text
-domain/notifications/AirQualityAlert.kt
-domain/notifications/AirQualityAlertNotifier.kt
-domain/notifications/AirQualityAlertPolicy.kt
-data/notifications/AndroidAirQualityAlertNotifier.kt
+domain/notifications/NotificationDecisionEngine.kt
+domain/notifications/NotificationPolicy.kt
+domain/notifications/NotificationState.kt
+domain/notifications/NotificationMessageDispatcher.kt
+data/notifications/NotificationStateRepositoryImpl.kt
+data/notifications/AndroidNotificationMessageDispatcher.kt
 presentation/settings/SettingsRoute.kt
 ```
 
 What exists:
 
-- `AirQualityAlertPolicy` evaluates degraded readings and fetch failures.
-- Sensor alerts require two consecutive degraded readings.
-- device-offline alerts require three consecutive fetch failures.
+- `NotificationDecisionEngine` evaluates current conditions, fetch failures, stale data, persistent degradation, recovery, cooldown, escalation, and dominant-metric changes.
+- notification decision state is persisted through `NotificationStateRepositoryImpl`.
+- device-unreachable alerts require repeated fetch failures.
 - repeated alerts use a 20 minute cooldown.
-- severity escalation bypasses cooldown.
-- disabling notifications clears in-memory policy state.
-- `AndroidAirQualityAlertNotifier` creates one `air_quality_alerts` channel and checks `POST_NOTIFICATIONS` on Android 13+ before posting.
+- severity escalation and dominant-metric changes can bypass repeated-warning suppression.
+- disabling notifications clears persisted notification decision state.
+- `AndroidNotificationMessageDispatcher` creates one `air_quality_alerts` channel and checks `POST_NOTIFICATIONS` on Android 13+ before posting.
 - the settings route requests `android.permission.POST_NOTIFICATIONS` before enabling the alert toggle.
 
 Current limitation:
 
-- alert policy state is in memory only.
-- notification channels are not split by monitoring status, air quality, device status, and recovery.
-- there is no persistent foreground-service notification.
-- no notification action currently stops monitoring or triggers immediate refresh.
-- there is no persistent notification decision state for cooldown/recovery across process restarts.
+- alert notifications share one air-quality alert channel.
+- stale-data notification evaluation exists in the decision engine but is not yet wired into a runtime trigger path.
 
 ### Existing Settings Persistence
 
@@ -2913,7 +2931,7 @@ What exists:
 - when a device URL is configured, performs an initial refresh.
 - starts a `viewModelScope` auto-refresh loop using the stored dashboard interval.
 - prevents overlapping refreshes with a coroutine `Mutex`.
-- evaluates current `AirQualityAlertPolicy` after foreground dashboard refresh success/failure.
+- evaluates `NotificationDecisionEngine` after foreground dashboard refresh success/failure.
 
 Current limitation:
 
@@ -3034,7 +3052,7 @@ Implications:
 - add `domain/monitoring` models and validation policy.
 - add monitoring settings persistence and repository APIs.
 - add persistent notification state storage.
-- replace or wrap `AirQualityAlertPolicy` with a persistent `NotificationDecisionEngine` that handles degradation, critical escalation, persistent bad conditions, recovery, unreachable device, stale data, cooldown, and deduplication.
+- replace the legacy alert policy with a persistent `NotificationDecisionEngine` that handles degradation, critical escalation, persistent bad conditions, recovery, unreachable device, stale data, cooldown, and deduplication.
 - split Android notification channel creation and notification dispatching into reusable classes.
 - add foreground service manifest support.
 - add a service controller as the only foreground-service start/stop gateway.
@@ -3075,8 +3093,6 @@ app/src/main/java/dev/worxbend/airgradient/data/settings/SettingsDataSource.kt
 app/src/main/java/dev/worxbend/airgradient/data/settings/SettingsRepositoryImpl.kt
 app/src/main/java/dev/worxbend/airgradient/domain/model/AppSettings.kt
 app/src/main/java/dev/worxbend/airgradient/domain/repository/SettingsRepository.kt
-app/src/main/java/dev/worxbend/airgradient/domain/notifications/AirQualityAlertPolicy.kt
-app/src/main/java/dev/worxbend/airgradient/data/notifications/AndroidAirQualityAlertNotifier.kt
 app/src/main/java/dev/worxbend/airgradient/presentation/dashboard/DashboardScreen.kt
 app/src/main/java/dev/worxbend/airgradient/presentation/dashboard/DashboardUiState.kt
 app/src/main/java/dev/worxbend/airgradient/presentation/dashboard/DashboardViewModel.kt

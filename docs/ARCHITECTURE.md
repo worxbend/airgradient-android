@@ -67,8 +67,8 @@ device URL clears the persisted decision state.
 
 Android delivery is isolated in `data/notifications/AndroidNotificationMessageDispatcher`. It creates the air-quality
 alert channel, checks `POST_NOTIFICATIONS` on Android 13+, uses deterministic notification IDs by message type/key, and
-never sends when permission is missing. The older `AirQualityAlertPolicy` remains in the codebase for the original
-reference-policy tests until it is removed in a dedicated cleanup.
+never sends when permission is missing. The legacy in-memory alert policy has been removed so dashboard refreshes,
+foreground monitoring, and WorkManager checks all use the persisted decision engine.
 
 ## Foreground Monitoring
 
