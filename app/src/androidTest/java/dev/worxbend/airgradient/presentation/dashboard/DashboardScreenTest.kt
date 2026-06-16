@@ -13,6 +13,7 @@ import dev.worxbend.airgradient.domain.error.AirGradientError
 import dev.worxbend.airgradient.domain.model.AirMeasureSnapshot
 import dev.worxbend.airgradient.domain.model.SensorMeasurementUnit
 import dev.worxbend.airgradient.domain.model.SensorStatus
+import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.sensors.SensorMetricFactory
 import dev.worxbend.airgradient.presentation.theme.AirGradientTheme
 import org.junit.Rule
@@ -90,6 +91,41 @@ class DashboardScreenTest {
     }
 
     @Test
+    fun batteryFriendlyMonitoringStateShowsStopAction() {
+        val startMonitoringClicks = AtomicInteger(0)
+        val stopMonitoringClicks = AtomicInteger(0)
+
+        composeRule.setContent {
+            AirGradientTheme(dynamicColor = false) {
+                DashboardScreen(
+                    state =
+                        contentState(
+                            monitoringSummary =
+                                DashboardMonitoringSummary(
+                                    mode = MonitoringMode.BatteryFriendlyPeriodic,
+                                    periodicBackgroundIntervalMinutes = 30,
+                                ),
+                        ),
+                    onRefresh = {},
+                    onOpenSettings = {},
+                    onConfigureDevice = {},
+                    onStartMonitoring = { startMonitoringClicks.incrementAndGet() },
+                    onStopMonitoring = { stopMonitoringClicks.incrementAndGet() },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Battery-friendly checks every 30m or later").assertIsDisplayed()
+        composeRule.onNodeWithText("Periodic").assertIsDisplayed()
+        composeRule.onNodeWithText("Stop monitoring").performClick()
+
+        composeRule.runOnIdle {
+            check(startMonitoringClicks.get() == 0)
+            check(stopMonitoringClicks.get() == 1)
+        }
+    }
+
+    @Test
     fun errorStateShowsRetryAndSettingsActions() {
         val retryClicks = AtomicInteger(0)
         val configureClicks = AtomicInteger(0)
@@ -129,7 +165,13 @@ class DashboardScreenTest {
         }
     }
 
-    private fun contentState(): DashboardUiState.Content {
+    private fun contentState(
+        monitoringSummary: DashboardMonitoringSummary =
+            DashboardMonitoringSummary(
+                lastBackgroundCheckLabel = "Last background check 2026-06-16T00:15:00Z",
+                lastSuccessfulBackgroundReadLabel = "Last successful reading 2026-06-16T00:12:00Z",
+            ),
+    ): DashboardUiState.Content {
         val current = snapshot()
         val previous = current.copy(aqi = 40, pm25 = 8.0, co2 = 460.0)
 
@@ -140,11 +182,7 @@ class DashboardScreenTest {
             lastUpdatedLabel = "Last updated just now",
             fetchStatusLabel = "Latest measurements loaded.",
             refreshIntervalSeconds = 30,
-            monitoringSummary =
-                DashboardMonitoringSummary(
-                    lastBackgroundCheckLabel = "Last background check 2026-06-16T00:15:00Z",
-                    lastSuccessfulBackgroundReadLabel = "Last successful reading 2026-06-16T00:12:00Z",
-                ),
+            monitoringSummary = monitoringSummary,
             isRefreshing = false,
         )
     }

@@ -44,7 +44,7 @@ Most AirGradient local-server installs use plain HTTP on the local network. The 
 
 Notifications are disabled by default. When enabled, Android 13+ devices request `POST_NOTIFICATIONS`; alerts are evaluated from foreground dashboard refreshes, always-on monitoring, and battery-friendly checks through the persisted notification decision engine. Users can choose Warning or Critical as the minimum alert severity and can disable recovery or device-unreachable alerts. Cooldown, stale-data, and recovery state survive app process restarts.
 
-Always-on monitoring is opt-in from Settings or the dashboard monitoring card. It requires a configured device URL and notification permission on Android 13+, starts a visible foreground service, and supports 30 second, 1 minute, 2 minute, and 5 minute polling intervals.
+Always-on monitoring is opt-in from Settings or the dashboard monitoring card. It requires a configured device URL and notification permission on Android 13+, starts a visible foreground service, and supports 30 second, 1 minute, 2 minute, and 5 minute polling intervals. The dashboard monitoring card can stop any active monitoring mode.
 
 The persistent monitoring notification shows the latest completed check and last successful reading with concise local time labels, plus Refresh now and Stop actions.
 

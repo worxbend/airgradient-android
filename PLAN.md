@@ -1651,6 +1651,17 @@ Behavior notes:
 - always-on restore still requires Android 13+ notification permission; if permission was revoked while the app was closed, monitoring is disabled instead of leaving the UI in an active-but-not-running state
 ```
 
+### Iteration 36 — Dashboard Battery-Friendly Stop Control
+
+Implemented a focused dashboard monitoring control correction:
+
+```text
+- dashboard monitoring card now shows Stop monitoring for any active monitoring mode
+- battery-friendly monitoring no longer displays the Start always-on quick action while already active
+- added Compose UI coverage for the battery-friendly dashboard state and stop callback
+- README clarifies that the dashboard monitoring card can stop any active monitoring mode
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

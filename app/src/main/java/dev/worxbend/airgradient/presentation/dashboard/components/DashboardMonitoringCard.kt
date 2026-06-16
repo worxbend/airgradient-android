@@ -26,7 +26,7 @@ internal fun MonitoringStatusCard(
     summary: DashboardMonitoringSummary,
     actions: DashboardMonitoringActions,
 ) {
-    val isAlwaysOn = summary.mode == MonitoringMode.AlwaysOnForegroundService
+    val isMonitoringActive = summary.mode.isEnabled
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -46,7 +46,7 @@ internal fun MonitoringStatusCard(
             MonitoringStatusText(summary = summary)
             DashboardMonitoringActionMessage(actionState = summary.actionState)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (isAlwaysOn) {
+                if (isMonitoringActive) {
                     OutlinedButton(
                         onClick = actions.onStopMonitoring,
                         enabled = summary.actionState != DashboardMonitoringActionState.Stopping,
