@@ -2848,3 +2848,197 @@ app/src/test/java/dev/worxbend/airgradient/worker/AirQualityCheckWorkerTest.kt
 10. Integrate monitoring controls in settings and monitoring status in dashboard.
 11. Add WorkManager only after the foreground-service path is working, and keep it limited to 15 minute or longer battery-friendly checks.
 12. Update README and docs once behavior is implemented and validated.
+
+## Always-On Monitoring Product Behavior
+
+This feature adds explicit background monitoring modes. The app must keep the existing foreground dashboard behavior, but dashboard refresh must not be treated as background monitoring.
+
+### Monitoring Modes
+
+Monitoring mode is represented in the domain layer as:
+
+```kotlin
+enum class MonitoringMode {
+    Off,
+    AlwaysOnForegroundService,
+    BatteryFriendlyPeriodic,
+}
+```
+
+The two background modes have different Android runtime contracts:
+
+```text
+Always-on monitoring:
+  Implementation: Android foreground service
+  User visibility: persistent notification is always visible while active
+  Polling: supports 30-second checks
+  Use case: near-real-time indoor-air monitoring
+
+Battery-friendly periodic monitoring:
+  Implementation: WorkManager
+  User visibility: no always-visible monitoring notification required
+  Polling: minimum interval is 15 minutes and execution is inexact
+  Use case: coarse background checks with lower battery impact
+```
+
+WorkManager must never be used for 30-second polling. Any WorkManager UI or documentation must state that checks are not real-time and may run at or after the configured periodic interval according to Android scheduling policy.
+
+### Defaults
+
+```text
+Monitoring mode: Off
+Foreground polling interval: 30 seconds
+Battery-friendly interval: 15 minutes
+Persistent notification: enabled only while foreground monitoring is active
+Smart alerts: disabled until the user enables notifications
+Minimum foreground interval: 30 seconds
+Minimum battery-friendly interval: 15 minutes
+```
+
+### Always-On Foreground Service Behavior
+
+Always-on monitoring must behave as follows:
+
+```text
+- user explicitly enables it
+- foreground service starts only after a valid device URL exists
+- foreground service starts only after notification permission is available on Android 13+
+- persistent notification appears immediately with a starting/checking state
+- app checks the AirGradient device every configured foreground interval
+- 30 seconds is the minimum allowed foreground interval
+- persistent notification updates in place with current air-quality status
+- alert notifications are emitted only by smart notification rules
+- user can stop monitoring from the persistent notification
+- user can request Refresh now from the persistent notification
+- monitoring stops if the device URL is removed
+- monitoring stops or refuses to start if configuration becomes invalid
+- stopping monitoring updates mode to Off and removes the persistent notification
+```
+
+The persistent notification and alert notifications are separate:
+
+```text
+- persistent notification uses one stable notification ID and is updated in place
+- smart alert notifications use deterministic IDs by notification key/type
+- alert notification cooldown and deduplication state must survive process restart
+```
+
+### Battery-Friendly Periodic Behavior
+
+Battery-friendly monitoring must behave as follows:
+
+```text
+- user explicitly enables it
+- WorkManager schedules periodic checks only when mode is BatteryFriendlyPeriodic
+- minimum repeat interval is 15 minutes
+- no exact timing guarantee is presented to the user
+- no persistent foreground-service notification is required
+- smart notification decision engine is still used
+- periodic work is cancelled when mode becomes Off
+- periodic work is cancelled when mode becomes AlwaysOnForegroundService
+- periodic work refuses to run without a configured device URL
+```
+
+### Smart Alert Behavior
+
+Smart alerts are controlled by the notification decision engine, not by the service, worker, dashboard, or notification dispatcher.
+
+The decision engine must handle:
+
+```text
+- notifications disabled
+- first warning
+- repeated warning suppression
+- warning to critical escalation
+- dominant bad metric changes
+- persistent bad air quality
+- recovery after confirmation window
+- device unreachable after repeated failures
+- stale data
+- per-key cooldown
+- restart-safe cooldown and recovery state
+```
+
+Alert notification types:
+
+```kotlin
+enum class NotificationType {
+    AirQualityDegraded,
+    AirQualityCritical,
+    AirQualityPersistent,
+    AirQualityRecovered,
+    DeviceUnreachable,
+    StaleData,
+}
+```
+
+### Settings And Dashboard Behavior
+
+Settings must expose:
+
+```text
+- Monitoring mode: Off / Always-on / Battery-friendly
+- Foreground polling interval: 30 sec / 1 min / 2 min / 5 min
+- Battery-friendly interval: 15 min / 30 min / 1 hour
+- Smart alert notifications toggle
+- Minimum alert severity: Warning / Critical
+- Notify on recovery
+- Notify on device unreachable
+- Stop monitoring button when monitoring is active
+```
+
+Settings must show explanatory copy:
+
+```text
+Always-on mode keeps a persistent notification visible and checks your AirGradient device every 30 seconds. This may increase battery usage.
+
+Battery-friendly mode uses Android background scheduling. It is not real-time and may run every 15 minutes or later.
+```
+
+Dashboard must show:
+
+```text
+- Monitoring off
+- Always-on monitoring active
+- Battery-friendly monitoring active
+- Last background check time
+- Current polling interval
+- Start monitoring action
+- Stop monitoring action
+```
+
+UI rules:
+
+```text
+- Composables do not start services directly
+- ViewModels call use cases/controllers
+- validation errors are visible
+- notification permission denial is visible
+- dashboard does not own the monitoring loop
+- dashboard does not run background checks
+```
+
+### Permission And Configuration Rules
+
+Validation rules:
+
+```text
+- foreground polling interval must be >= 30 seconds
+- periodic background interval must be >= 15 minutes
+- always-on monitoring requires a configured device URL
+- battery-friendly monitoring requires a configured device URL
+- always-on monitoring requires notification permission on Android 13+
+- foreground service must never start silently without user-visible notification support
+- removing the device URL stops or disables monitoring
+```
+
+Android runtime rules:
+
+```text
+- foreground service mode must declare the proper foreground-service permission and type
+- foreground service must call startForeground promptly with the persistent notification
+- service owns coroutine scope and cancels work on destroy
+- no GlobalScope, raw Thread, or Timer is allowed
+- one check must not overlap another
+- fetch timeout must stay below the foreground polling interval
+```
