@@ -11,6 +11,10 @@ kotlin {
     }
 }
 
+// Release signing is driven by environment variables so the same build works
+// locally (unsigned) and in CI (signed). See scripts/setup-signing.sh.
+val releaseKeystoreFile: String? = System.getenv("KEYSTORE_FILE")
+
 android {
     namespace = "dev.worxbend.airgradient"
     compileSdk = 36
@@ -28,6 +32,17 @@ android {
         }
     }
 
+    signingConfigs {
+        if (releaseKeystoreFile != null) {
+            create("release") {
+                storeFile = file(releaseKeystoreFile)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -35,6 +50,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Signed only when the keystore is provided via env (CI release).
+            // Otherwise the release APK is built unsigned, as before.
+            if (releaseKeystoreFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

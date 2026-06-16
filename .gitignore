@@ -11,4 +11,11 @@ captures/
 *.aab
 *.ap_
 
+# Signing — never commit keys or credentials
+*.jks
+*.keystore
+keystore.properties
+signing-credentials.txt
+.signing-backup/
+
 .DS_Store
