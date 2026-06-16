@@ -5,6 +5,7 @@ import dev.worxbend.airgradient.domain.error.AirGradientError
 import dev.worxbend.airgradient.domain.model.AirMeasureSnapshot
 import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringRuntimeState
 import dev.worxbend.airgradient.domain.monitoring.MonitoringTickResult
 import dev.worxbend.airgradient.domain.monitoring.MonitoringTickSkipReason
 import dev.worxbend.airgradient.domain.notifications.NotificationMessage
@@ -14,6 +15,7 @@ import dev.worxbend.airgradient.domain.notifications.NotificationState
 import dev.worxbend.airgradient.domain.notifications.NotificationType
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
 import dev.worxbend.airgradient.domain.repository.AirGradientRepository
+import dev.worxbend.airgradient.domain.repository.MonitoringRuntimeStateRepository
 import dev.worxbend.airgradient.domain.repository.NotificationStateRepository
 import dev.worxbend.airgradient.domain.usecase.GetCurrentMeasurementUseCase
 import kotlinx.coroutines.CoroutineStart
@@ -65,6 +67,52 @@ class MonitoringLoopRunnerTest {
             assertEquals(1, repository.calls)
             assertEquals("pm25", stateRepository.state.lastDominantMetricKey)
             assertEquals(NotificationType.AirQualityCritical, dispatcher.messages.single().type)
+        }
+
+    @Test
+    fun `successful tick records monitoring runtime state`() =
+        runTest {
+            val runtimeStateRepository = InMemoryMonitoringRuntimeStateRepository()
+            val runner =
+                runner(
+                    repository = FakeAirGradientRepository(AirGradientFetchResult.Success(healthySnapshot)),
+                    runtimeStateRepository = runtimeStateRepository,
+                )
+
+            runner.runOneTick(settings())
+
+            assertEquals(
+                MonitoringRuntimeState.default.copy(
+                    lastCheckedAt = now,
+                    lastSuccessfulCheckAt = now,
+                    lastSuccessfulMeasurementAt = healthySnapshot.measuredAt,
+                ),
+                runtimeStateRepository.state,
+            )
+        }
+
+    @Test
+    fun `failed tick records monitoring runtime failure state`() =
+        runTest {
+            val runtimeStateRepository = InMemoryMonitoringRuntimeStateRepository()
+            val runner =
+                runner(
+                    repository = FakeAirGradientRepository(AirGradientFetchResult.Failure(AirGradientError.Timeout)),
+                    runtimeStateRepository = runtimeStateRepository,
+                )
+
+            runner.runOneTick(settings(notificationsEnabled = true))
+            runner.runOneTick(settings(notificationsEnabled = true))
+            runner.runOneTick(settings(notificationsEnabled = true))
+
+            assertEquals(
+                MonitoringRuntimeState.default.copy(
+                    lastCheckedAt = now,
+                    lastFailureAt = now,
+                    consecutiveFailureCount = 3,
+                ),
+                runtimeStateRepository.state,
+            )
         }
 
     @Test
@@ -176,11 +224,13 @@ class MonitoringLoopRunnerTest {
     private fun runner(
         repository: FakeAirGradientRepository,
         stateRepository: NotificationStateRepository = InMemoryNotificationStateRepository(),
+        runtimeStateRepository: MonitoringRuntimeStateRepository = InMemoryMonitoringRuntimeStateRepository(),
         dispatcher: NotificationMessageDispatcher = RecordingNotificationMessageDispatcher(),
     ): MonitoringLoopRunner =
         MonitoringLoopRunner(
             getCurrentMeasurement = GetCurrentMeasurementUseCase(repository),
             notificationStateRepository = stateRepository,
+            monitoringRuntimeStateRepository = runtimeStateRepository,
             notificationMessageDispatcher = dispatcher,
             clockProvider = ClockProvider { now },
         )
@@ -236,6 +286,48 @@ class MonitoringLoopRunnerTest {
 
         override suspend fun clearNotificationState() {
             state = NotificationState.default
+        }
+    }
+
+    private class InMemoryMonitoringRuntimeStateRepository(
+        initialState: MonitoringRuntimeState = MonitoringRuntimeState.default,
+    ) : MonitoringRuntimeStateRepository {
+        var state = initialState
+            private set
+
+        override fun observeMonitoringRuntimeState(): Flow<MonitoringRuntimeState> = flowOf(state)
+
+        override suspend fun getMonitoringRuntimeState(): MonitoringRuntimeState = state
+
+        override suspend fun recordTickResult(result: MonitoringTickResult) {
+            state =
+                when (result) {
+                    is MonitoringTickResult.Success -> {
+                        state.copy(
+                            lastCheckedAt = result.checkedAt,
+                            lastSuccessfulCheckAt = result.checkedAt,
+                            lastSuccessfulMeasurementAt = result.snapshot.measuredAt,
+                            lastFailureAt = null,
+                            consecutiveFailureCount = 0,
+                        )
+                    }
+
+                    is MonitoringTickResult.Failure -> {
+                        state.copy(
+                            lastCheckedAt = result.checkedAt,
+                            lastFailureAt = result.checkedAt,
+                            consecutiveFailureCount = result.consecutiveFailureCount,
+                        )
+                    }
+
+                    is MonitoringTickResult.Skipped -> {
+                        state
+                    }
+                }
+        }
+
+        override suspend fun clearMonitoringRuntimeState() {
+            state = MonitoringRuntimeState.default
         }
     }
 

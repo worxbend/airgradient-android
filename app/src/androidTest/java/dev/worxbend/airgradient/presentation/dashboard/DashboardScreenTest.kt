@@ -78,6 +78,8 @@ class DashboardScreenTest {
         composeRule.onNodeWithText("30s").assertIsDisplayed()
         composeRule.onNodeWithText("Background monitoring").assertIsDisplayed()
         composeRule.onNodeWithText("Monitoring off").assertIsDisplayed()
+        composeRule.onNodeWithText("Last background check 2026-06-16T00:15:00Z").assertIsDisplayed()
+        composeRule.onNodeWithText("Last successful reading 2026-06-16T00:12:00Z").assertIsDisplayed()
         composeRule.onNodeWithText("Start always-on").performClick()
         composeRule.onNodeWithContentDescription(REFRESH_ACTION_DESCRIPTION).assertIsEnabled().performClick()
 
@@ -138,6 +140,11 @@ class DashboardScreenTest {
             lastUpdatedLabel = "Last updated just now",
             fetchStatusLabel = "Latest measurements loaded.",
             refreshIntervalSeconds = 30,
+            monitoringSummary =
+                DashboardMonitoringSummary(
+                    lastBackgroundCheckLabel = "Last background check 2026-06-16T00:15:00Z",
+                    lastSuccessfulBackgroundReadLabel = "Last successful reading 2026-06-16T00:12:00Z",
+                ),
             isRefreshing = false,
         )
     }

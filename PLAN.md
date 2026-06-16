@@ -1394,7 +1394,7 @@ Behavior notes:
 ```text
 - Settings remains the full monitoring configuration surface.
 - Dashboard exposes quick always-on start/stop only for configured dashboard states.
-- Battery-friendly WorkManager monitoring, last background check timestamps, minimum alert severity, recovery toggles, and device-unreachable toggles remain deferred.
+- Battery-friendly WorkManager monitoring and smart alert preference controls remained deferred at this point.
 ```
 
 ### Iteration 25 — Battery-Friendly WorkManager Monitoring
@@ -1419,7 +1419,7 @@ Behavior notes:
 - Battery-friendly monitoring requires a configured device URL but does not require Android 13+ notification permission because it has no persistent foreground notification.
 - Smart alert decisions still use the shared persisted NotificationDecisionEngine path; if alerts are disabled, periodic checks only refresh decision state through the no-alert path.
 - The worker disables monitoring and cancels the periodic schedule if the configured device URL is removed before a scheduled run.
-- Last background check timestamps, minimum alert severity, recovery toggles, and device-unreachable toggles remain deferred.
+- Last background check timestamps and smart alert preference controls remained deferred at this point.
 ```
 
 ### Iteration 26 — Smart Alert Preference Controls
@@ -1440,6 +1440,38 @@ Validation passed:
 
 ```bash
 ./gradlew test ktlintCheck detekt lint
+```
+
+### Iteration 27 — Monitoring Runtime Check Timestamps
+
+Implemented persisted monitoring runtime visibility:
+
+```text
+- added MonitoringRuntimeState and MonitoringRuntimeStateRepository as a separate operational-state contract
+- added DataStore-backed MonitoringRuntimeStateRepositoryImpl with last checked, last successful check, last successful measurement, last failure, and consecutive failure count fields
+- MonitoringLoopRunner now records completed success/failure ticks for both foreground service and WorkManager paths
+- skipped ticks do not update the last-check timestamp because no fetch attempt completed
+- DashboardViewModel observes monitoring runtime state alongside monitoring settings
+- dashboard monitoring card now shows the last background check and last successful background reading when available
+- battery-friendly dashboard status now shows the configured periodic interval and notes Android's inexact scheduling
+- Android backup and device-transfer rules exclude the monitoring runtime DataStore file
+- unit and Compose tests cover runtime persistence, loop-runner recording, dashboard summary mapping, and visible dashboard timestamp labels
+```
+
+Behavior notes:
+
+```text
+- Monitoring runtime state is operational metadata only; raw sensor history is still not persisted.
+- Settings remains the full configuration surface, while dashboard provides quick status visibility and always-on start/stop controls.
+- Minimum alert severity, recovery alerts, and device-unreachable toggles were implemented in Iteration 26 and are no longer deferred.
+```
+
+Validation passed:
+
+```bash
+./gradlew test ktlintCheck detekt lint
+./gradlew assembleDebugAndroidTest assembleRelease
+./gradlew clean build
 ```
 
 ### Phase 0 — Reference Scan and PLAN.md Update

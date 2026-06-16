@@ -4,10 +4,12 @@
         <exclude domain="sharedpref" path="." />
         <exclude domain="file" path="datastore/airgradient_settings.preferences_pb" />
         <exclude domain="file" path="datastore/airgradient_notification_state.preferences_pb" />
+        <exclude domain="file" path="datastore/airgradient_monitoring_runtime_state.preferences_pb" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="." />
         <exclude domain="file" path="datastore/airgradient_settings.preferences_pb" />
         <exclude domain="file" path="datastore/airgradient_notification_state.preferences_pb" />
+        <exclude domain="file" path="datastore/airgradient_monitoring_runtime_state.preferences_pb" />
     </device-transfer>
 </data-extraction-rules>

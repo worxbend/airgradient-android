@@ -49,6 +49,10 @@ data class DashboardMonitoringSummary(
     val mode: MonitoringMode = MonitoringMode.Off,
     val foregroundPollingIntervalSeconds: Int =
         MonitoringSettings.DEFAULT_FOREGROUND_POLLING_INTERVAL_SECONDS,
+    val periodicBackgroundIntervalMinutes: Int =
+        MonitoringSettings.DEFAULT_PERIODIC_BACKGROUND_INTERVAL_MINUTES,
+    val lastBackgroundCheckLabel: String? = null,
+    val lastSuccessfulBackgroundReadLabel: String? = null,
     val actionState: DashboardMonitoringActionState = DashboardMonitoringActionState.Idle,
 )
 

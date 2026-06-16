@@ -37,12 +37,26 @@ The app also stores notification decision state in a separate DataStore file:
 This notification state lets cooldown and recovery behavior survive an app process restart. It does not include raw
 sensor readings.
 
-These files stay on the device. Android cloud backup and device-transfer extraction rules exclude both AirGradient
+The app also stores monitoring runtime metadata in a separate DataStore file:
+
+```text
+- last completed background check timestamp
+- last successful background check timestamp
+- last successful measurement timestamp
+- last background failure timestamp
+- consecutive background failure count
+```
+
+This runtime state lets the dashboard show when foreground-service or WorkManager monitoring last checked the device. It
+does not include raw sensor readings or historical sensor samples.
+
+These files stay on the device. Android cloud backup and device-transfer extraction rules exclude all AirGradient
 DataStore files:
 
 ```text
 datastore/airgradient_settings.preferences_pb
 datastore/airgradient_notification_state.preferences_pb
+datastore/airgradient_monitoring_runtime_state.preferences_pb
 ```
 
 This avoids copying the local device address, notification preference, or local alert history into a backup account or to

@@ -52,4 +52,4 @@ Battery-friendly monitoring is opt-in from Settings. It uses WorkManager with a 
 
 The app stores local settings and notification decision state in DataStore and keeps current readings in memory. Historical sensor readings are not persisted, and no analytics, crash-reporting, cloud account, or remote proxy integration is configured.
 
-Android cloud backup and device-transfer rules exclude the AirGradient settings and notification-state DataStore files so the configured local device URL and local alert history are not copied into a backup account or restored onto another device. See [docs/PRIVACY.md](docs/PRIVACY.md) for details.
+Android cloud backup and device-transfer rules exclude the AirGradient settings, notification-state, and monitoring runtime DataStore files so the configured local device URL, local alert history, and background check timestamps are not copied into a backup account or restored onto another device. See [docs/PRIVACY.md](docs/PRIVACY.md) for details.

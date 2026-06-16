@@ -86,8 +86,9 @@ their ViewModels call the controller instead of constructing service intents dir
 notification decision state when alerts are disabled, persists cooldown/recovery state when alerts are enabled, and
 returns typed `MonitoringTickResult` values for the service to render in the persistent notification.
 
-The dashboard observes `MonitoringSettings` and renders a compact monitoring card with the current mode, foreground
-polling interval, and quick start/stop actions.
+The dashboard observes `MonitoringSettings` and `MonitoringRuntimeState`, then renders a compact monitoring card with
+the current mode, configured interval, last background check, last successful background reading, and quick start/stop
+actions.
 
 ## Battery-Friendly Monitoring
 
@@ -102,4 +103,6 @@ notification decision path to `MonitoringLoopRunner`. The worker intentionally t
 best-effort success after the runner handles the result so WorkManager keeps the periodic schedule. WorkManager intervals
 are 15 minutes or longer and are inexact by Android design.
 
-Last background check timestamps and advanced alert preference controls are still deferred.
+Completed foreground-service and WorkManager checks are recorded in a separate monitoring runtime DataStore. Skipped
+ticks do not update the timestamp because no fetch attempt completed. The dashboard uses this operational state for
+visibility only; historical sensor readings are still not persisted.

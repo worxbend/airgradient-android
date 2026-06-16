@@ -2,6 +2,7 @@ package dev.worxbend.airgradient.presentation.dashboard
 
 import dev.worxbend.airgradient.domain.error.AirGradientError
 import dev.worxbend.airgradient.domain.model.AirMeasureSnapshot
+import java.time.Instant
 import java.time.format.DateTimeFormatter
 
 internal object DashboardPresentationFormatter {
@@ -10,6 +11,16 @@ internal object DashboardPresentationFormatter {
     fun lastUpdatedLabel(snapshot: AirMeasureSnapshot): String {
         val formattedInstant = instantFormatter.format(snapshot.measuredAt)
         return "Last updated $formattedInstant"
+    }
+
+    fun lastBackgroundCheckLabel(checkedAt: Instant): String {
+        val formattedInstant = instantFormatter.format(checkedAt)
+        return "Last background check $formattedInstant"
+    }
+
+    fun lastSuccessfulBackgroundReadLabel(readAt: Instant): String {
+        val formattedInstant = instantFormatter.format(readAt)
+        return "Last successful reading $formattedInstant"
     }
 
     fun fetchFailureStatusLabel(error: AirGradientError): String = "Fetch failed: ${error.toShortMessage()}"

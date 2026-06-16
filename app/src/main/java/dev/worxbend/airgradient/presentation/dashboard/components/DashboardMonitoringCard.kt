@@ -83,10 +83,24 @@ private fun MonitoringStatusText(summary: DashboardMonitoringSummary) {
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = summary.mode.toDashboardMonitoringStatusText(summary.foregroundPollingIntervalSeconds),
+                text = summary.toDashboardMonitoringStatusText(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            summary.lastBackgroundCheckLabel?.let { label ->
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            summary.lastSuccessfulBackgroundReadLabel?.let { label ->
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         Text(
             text = summary.mode.toDashboardMonitoringChipText(),
@@ -127,11 +141,19 @@ private fun DashboardMonitoringActionMessage(actionState: DashboardMonitoringAct
     }
 }
 
-private fun MonitoringMode.toDashboardMonitoringStatusText(intervalSeconds: Int): String =
-    when (this) {
-        MonitoringMode.Off -> "Monitoring off"
-        MonitoringMode.AlwaysOnForegroundService -> "Always-on checks every ${intervalSeconds.toIntervalText()}"
-        MonitoringMode.BatteryFriendlyPeriodic -> "Battery-friendly background checks active"
+private fun DashboardMonitoringSummary.toDashboardMonitoringStatusText(): String =
+    when (mode) {
+        MonitoringMode.Off -> {
+            "Monitoring off"
+        }
+
+        MonitoringMode.AlwaysOnForegroundService -> {
+            "Always-on checks every ${foregroundPollingIntervalSeconds.toSecondsIntervalText()}"
+        }
+
+        MonitoringMode.BatteryFriendlyPeriodic -> {
+            "Battery-friendly checks every ${periodicBackgroundIntervalMinutes.toMinutesIntervalText()} or later"
+        }
     }
 
 private fun MonitoringMode.toDashboardMonitoringChipText(): String =
@@ -152,11 +174,19 @@ private fun MonitoringPolicyValidationError.toDashboardMonitoringErrorMessage():
         }
     }
 
-private fun Int.toIntervalText(): String =
+private fun Int.toSecondsIntervalText(): String =
     if (this < SECONDS_PER_MINUTE) {
         "${this}s"
     } else {
         "${this / SECONDS_PER_MINUTE}m"
     }
 
+private fun Int.toMinutesIntervalText(): String =
+    if (this < MINUTES_PER_HOUR) {
+        "${this}m"
+    } else {
+        "${this / MINUTES_PER_HOUR}h"
+    }
+
 private const val SECONDS_PER_MINUTE = 60
+private const val MINUTES_PER_HOUR = 60

@@ -13,6 +13,8 @@ import dev.worxbend.airgradient.domain.notifications.NotificationMessageDispatch
 import dev.worxbend.airgradient.domain.notifications.NotificationPolicy
 import dev.worxbend.airgradient.domain.notifications.NotificationPolicyFactory
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
+import dev.worxbend.airgradient.domain.repository.MonitoringRuntimeStateRepository
+import dev.worxbend.airgradient.domain.repository.NoOpMonitoringRuntimeStateRepository
 import dev.worxbend.airgradient.domain.repository.NoOpNotificationStateRepository
 import dev.worxbend.airgradient.domain.repository.NotificationStateRepository
 import dev.worxbend.airgradient.domain.usecase.GetCurrentMeasurementUseCase
@@ -22,6 +24,8 @@ import java.time.Instant
 class MonitoringLoopRunner(
     private val getCurrentMeasurement: GetCurrentMeasurementUseCase,
     private val notificationStateRepository: NotificationStateRepository = NoOpNotificationStateRepository,
+    private val monitoringRuntimeStateRepository: MonitoringRuntimeStateRepository =
+        NoOpMonitoringRuntimeStateRepository,
     private val notificationDecisionEngine: NotificationDecisionEngine = NotificationDecisionEngine(),
     private val notificationMessageDispatcher: NotificationMessageDispatcher = NoOpNotificationMessageDispatcher,
     private val clockProvider: ClockProvider = SystemClockProvider,
@@ -51,10 +55,13 @@ class MonitoringLoopRunner(
         checkedAt: Instant,
     ): MonitoringTickResult =
         try {
-            when (val result = getCurrentMeasurement(settings.serverUrl)) {
-                is AirGradientFetchResult.Success -> handleSuccess(settings, result, checkedAt)
-                is AirGradientFetchResult.Failure -> handleFailure(settings, result, checkedAt)
-            }
+            val tickResult =
+                when (val result = getCurrentMeasurement(settings.serverUrl)) {
+                    is AirGradientFetchResult.Success -> handleSuccess(settings, result, checkedAt)
+                    is AirGradientFetchResult.Failure -> handleFailure(settings, result, checkedAt)
+                }
+            monitoringRuntimeStateRepository.recordTickResult(tickResult)
+            tickResult
         } finally {
             tickMutex.unlock()
         }

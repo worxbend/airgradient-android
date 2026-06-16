@@ -10,6 +10,7 @@ import dev.worxbend.airgradient.domain.model.AirMeasureSnapshot
 import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
 import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
+import dev.worxbend.airgradient.domain.monitoring.MonitoringRuntimeState
 import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
 import dev.worxbend.airgradient.domain.notifications.AirQualityConditionFactory
 import dev.worxbend.airgradient.domain.notifications.NotificationDecision
@@ -45,6 +46,7 @@ class DashboardViewModel(
     private val _uiState = MutableStateFlow<DashboardUiState>(DashboardUiState.Loading)
     private var currentSettings = AppSettings.default
     private var currentMonitoringSettings = MonitoringSettings.default
+    private var currentMonitoringRuntimeState = MonitoringRuntimeState.default
     private var monitoringActionState: DashboardMonitoringActionState = DashboardMonitoringActionState.Idle
     private var latestSuccessfulSnapshot: AirMeasureSnapshot? = null
     private var previousSuccessfulSnapshot: AirMeasureSnapshot? = null
@@ -63,6 +65,12 @@ class DashboardViewModel(
                 .observeMonitoringSettings()
                 .distinctUntilChanged()
                 .collect { settings -> handleMonitoringSettingsChanged(settings) }
+        }
+        viewModelScope.launch(dispatchers.io) {
+            monitoringDependencies
+                .observeMonitoringRuntimeState()
+                .distinctUntilChanged()
+                .collect { state -> handleMonitoringRuntimeStateChanged(state) }
         }
     }
 
@@ -144,6 +152,11 @@ class DashboardViewModel(
         ) {
             monitoringActionState = DashboardMonitoringActionState.Started
         }
+        updateMonitoringSummary()
+    }
+
+    private fun handleMonitoringRuntimeStateChanged(state: MonitoringRuntimeState) {
+        currentMonitoringRuntimeState = state
         updateMonitoringSummary()
     }
 
@@ -318,6 +331,13 @@ class DashboardViewModel(
         DashboardMonitoringSummary(
             mode = currentMonitoringSettings.mode,
             foregroundPollingIntervalSeconds = currentMonitoringSettings.foregroundPollingIntervalSeconds,
+            periodicBackgroundIntervalMinutes = currentMonitoringSettings.periodicBackgroundIntervalMinutes,
+            lastBackgroundCheckLabel =
+                currentMonitoringRuntimeState.lastCheckedAt
+                    ?.let(DashboardPresentationFormatter::lastBackgroundCheckLabel),
+            lastSuccessfulBackgroundReadLabel =
+                currentMonitoringRuntimeState.lastSuccessfulMeasurementAt
+                    ?.let(DashboardPresentationFormatter::lastSuccessfulBackgroundReadLabel),
             actionState = monitoringActionState,
         )
 

@@ -9,7 +9,9 @@ import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.domain.model.SensorMetricKind
 import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringRuntimeState
 import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
+import dev.worxbend.airgradient.domain.monitoring.MonitoringTickResult
 import dev.worxbend.airgradient.domain.notifications.NotificationDecisionEngine
 import dev.worxbend.airgradient.domain.notifications.NotificationMessage
 import dev.worxbend.airgradient.domain.notifications.NotificationMessageDispatcher
@@ -18,11 +20,13 @@ import dev.worxbend.airgradient.domain.notifications.NotificationState
 import dev.worxbend.airgradient.domain.notifications.NotificationType
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
 import dev.worxbend.airgradient.domain.repository.AirGradientRepository
+import dev.worxbend.airgradient.domain.repository.MonitoringRuntimeStateRepository
 import dev.worxbend.airgradient.domain.repository.MonitoringSettingsRepository
 import dev.worxbend.airgradient.domain.repository.NotificationStateRepository
 import dev.worxbend.airgradient.domain.repository.SaveDeviceUrlResult
 import dev.worxbend.airgradient.domain.repository.SettingsRepository
 import dev.worxbend.airgradient.domain.usecase.GetCurrentMeasurementUseCase
+import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringRuntimeStateUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.RefreshDashboardUseCase
@@ -251,6 +255,37 @@ class DashboardViewModelTest {
         }
 
     @Test
+    fun `configured dashboard includes monitoring runtime timestamps`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val runtimeState =
+                MonitoringRuntimeState.default.copy(
+                    lastCheckedAt = Instant.parse("2026-06-16T00:10:00Z"),
+                    lastSuccessfulMeasurementAt = Instant.parse("2026-06-16T00:09:58Z"),
+                )
+            val viewModel =
+                viewModel(
+                    settings = configuredSettings,
+                    monitoringRuntimeRepository = FakeMonitoringRuntimeStateRepository(runtimeState),
+                    repository =
+                        FakeAirGradientRepository(
+                            results = ArrayDeque(listOf(AirGradientFetchResult.Success(firstSnapshot))),
+                        ),
+                )
+            runCurrent()
+
+            val state = viewModel.uiState.value as DashboardUiState.Content
+            assertEquals(
+                "Last background check 2026-06-16T00:10:00Z",
+                state.monitoringSummary.lastBackgroundCheckLabel,
+            )
+            assertEquals(
+                "Last successful reading 2026-06-16T00:09:58Z",
+                state.monitoringSummary.lastSuccessfulBackgroundReadLabel,
+            )
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
     fun `dashboard monitoring actions delegate to controller`() =
         runTest(mainDispatcherRule.dispatcher) {
             val monitoringRepository = FakeMonitoringSettingsRepository(MonitoringSettings.default)
@@ -283,11 +318,14 @@ class DashboardViewModelTest {
             viewModel.viewModelScope.cancel()
         }
 
+    @Suppress("LongParameterList")
     private fun viewModel(
         settings: AppSettings = AppSettings.default,
         monitoringSettings: MonitoringSettings = MonitoringSettings.default,
         monitoringRepository: FakeMonitoringSettingsRepository =
             FakeMonitoringSettingsRepository(monitoringSettings),
+        monitoringRuntimeRepository: MonitoringRuntimeStateRepository =
+            FakeMonitoringRuntimeStateRepository(MonitoringRuntimeState.default),
         repository: FakeAirGradientRepository,
         monitoringServiceController: MonitoringServiceController =
             RecordingMonitoringServiceController(
@@ -303,6 +341,8 @@ class DashboardViewModelTest {
             monitoringDependencies =
                 DashboardMonitoringDependencies(
                     observeMonitoringSettings = ObserveMonitoringSettingsUseCase(monitoringRepository),
+                    observeMonitoringRuntimeState =
+                        ObserveMonitoringRuntimeStateUseCase(monitoringRuntimeRepository),
                     monitoringServiceController = monitoringServiceController,
                 ),
             notificationDependencies =
@@ -382,6 +422,47 @@ class DashboardViewModelTest {
                     periodicBackgroundIntervalMinutes =
                         MonitoringSettings.requireSupportedPeriodicInterval(interval),
                 )
+        }
+    }
+
+    private class FakeMonitoringRuntimeStateRepository(
+        initialState: MonitoringRuntimeState,
+    ) : MonitoringRuntimeStateRepository {
+        private val state = MutableStateFlow(initialState)
+
+        override fun observeMonitoringRuntimeState(): Flow<MonitoringRuntimeState> = state
+
+        override suspend fun getMonitoringRuntimeState(): MonitoringRuntimeState = state.value
+
+        override suspend fun recordTickResult(result: MonitoringTickResult) {
+            state.value =
+                when (result) {
+                    is MonitoringTickResult.Success -> {
+                        state.value.copy(
+                            lastCheckedAt = result.checkedAt,
+                            lastSuccessfulCheckAt = result.checkedAt,
+                            lastSuccessfulMeasurementAt = result.snapshot.measuredAt,
+                            lastFailureAt = null,
+                            consecutiveFailureCount = 0,
+                        )
+                    }
+
+                    is MonitoringTickResult.Failure -> {
+                        state.value.copy(
+                            lastCheckedAt = result.checkedAt,
+                            lastFailureAt = result.checkedAt,
+                            consecutiveFailureCount = result.consecutiveFailureCount,
+                        )
+                    }
+
+                    is MonitoringTickResult.Skipped -> {
+                        state.value
+                    }
+                }
+        }
+
+        override suspend fun clearMonitoringRuntimeState() {
+            state.value = MonitoringRuntimeState.default
         }
     }
 
