@@ -21,6 +21,7 @@ Current baseline:
 - `core/dispatchers` contains injectable coroutine dispatcher grouping for ViewModels and use cases.
 - `presentation/dashboard` contains the dashboard UI state model, presentation formatting, and ViewModel refresh orchestration.
 - `presentation/settings` contains the settings form, Android 13+ notification permission request, and settings ViewModel.
+- `service` contains the always-on foreground monitoring service foundation, service controller, persistent status notification, and reusable monitoring loop runner.
 
 Planned package responsibilities:
 
@@ -64,5 +65,20 @@ alert channel, checks `POST_NOTIFICATIONS` on Android 13+, uses deterministic no
 never sends when permission is missing. The older `AirQualityAlertPolicy` remains in the codebase for the original
 reference-policy tests until it is removed in a dedicated cleanup.
 
-Background polling is intentionally not implemented yet, so notifications are still driven by foreground dashboard
-refreshes.
+## Foreground Monitoring
+
+Always-on monitoring is hosted by `service/AirQualityMonitoringService`, which is declared as a `dataSync`
+foreground service. The service starts foreground immediately with a persistent monitoring notification, owns a
+structured coroutine scope, and delegates each device check to `MonitoringLoopRunner`.
+
+`AirQualityMonitoringServiceController` is the only app-facing gateway for start, stop, and refresh-now commands. It
+validates that a device URL is configured and that Android 13+ notification permission is available before starting
+foreground monitoring. Composables and ViewModels should call this controller through future use cases rather than
+constructing service intents directly.
+
+`MonitoringLoopRunner` reuses `GetCurrentMeasurementUseCase`, `NotificationDecisionEngine`,
+`NotificationStateRepository`, and `NotificationMessageDispatcher`. It prevents overlapping checks with a mutex, clears
+notification decision state when alerts are disabled, persists cooldown/recovery state when alerts are enabled, and
+returns typed `MonitoringTickResult` values for the service to render in the persistent notification.
+
+Battery-friendly WorkManager checks and monitoring controls in settings/dashboard are still deferred.

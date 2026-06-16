@@ -13,6 +13,7 @@ import dev.worxbend.airgradient.data.settings.SettingsRepositoryImpl
 import dev.worxbend.airgradient.data.settings.airGradientSettingsDataStore
 import dev.worxbend.airgradient.domain.notifications.NotificationDecisionEngine
 import dev.worxbend.airgradient.domain.repository.AirGradientRepository
+import dev.worxbend.airgradient.domain.repository.MonitoringSettingsRepository
 import dev.worxbend.airgradient.domain.repository.NotificationStateRepository
 import dev.worxbend.airgradient.domain.repository.SettingsRepository
 import dev.worxbend.airgradient.domain.usecase.GetCurrentMeasurementUseCase
@@ -25,17 +26,24 @@ import dev.worxbend.airgradient.domain.usecase.SaveThemeModeUseCase
 import dev.worxbend.airgradient.domain.usecase.TestDeviceConnectionUseCase
 import dev.worxbend.airgradient.presentation.dashboard.DashboardViewModel
 import dev.worxbend.airgradient.presentation.settings.SettingsViewModel
+import dev.worxbend.airgradient.service.AirQualityMonitoringServiceController
+import dev.worxbend.airgradient.service.AndroidMonitoringNotificationPermissionChecker
+import dev.worxbend.airgradient.service.AndroidMonitoringServiceGateway
+import dev.worxbend.airgradient.service.MonitoringLoopRunner
+import dev.worxbend.airgradient.service.PersistentStatusNotificationUpdater
 
 class AppGraph(
     context: Context,
 ) {
     private val appContext = context.applicationContext
     private val dispatchers = AppDispatchers.production
-
-    val settingsRepository: SettingsRepository =
+    private val settingsRepositoryImpl =
         SettingsRepositoryImpl(
             settingsDataSource = SettingsDataSource(appContext.airGradientSettingsDataStore),
         )
+
+    val settingsRepository: SettingsRepository = settingsRepositoryImpl
+    val monitoringSettingsRepository: MonitoringSettingsRepository = settingsRepositoryImpl
 
     private val airGradientRepository: AirGradientRepository = AirGradientRepositoryImpl()
     private val getCurrentMeasurement = GetCurrentMeasurementUseCase(airGradientRepository)
@@ -43,6 +51,26 @@ class AppGraph(
         NotificationStateRepositoryImpl(appContext.airGradientNotificationStateDataStore)
     private val notificationDecisionEngine = NotificationDecisionEngine()
     private val notificationMessageDispatcher = AndroidNotificationMessageDispatcher(appContext)
+    val monitoringServiceController =
+        AirQualityMonitoringServiceController(
+            settingsRepository = settingsRepository,
+            monitoringSettingsRepository = monitoringSettingsRepository,
+            permissionChecker = AndroidMonitoringNotificationPermissionChecker(appContext),
+            serviceGateway = AndroidMonitoringServiceGateway(appContext),
+        )
+
+    fun monitoringLoopRunner(): MonitoringLoopRunner =
+        MonitoringLoopRunner(
+            getCurrentMeasurement = getCurrentMeasurement,
+            notificationStateRepository = notificationStateRepository,
+            notificationDecisionEngine = notificationDecisionEngine,
+            notificationMessageDispatcher = notificationMessageDispatcher,
+        )
+
+    fun persistentStatusNotificationUpdater(): PersistentStatusNotificationUpdater =
+        PersistentStatusNotificationUpdater(
+            appContext,
+        )
 
     fun dashboardViewModelFactory(): ViewModelProvider.Factory =
         viewModelFactory {

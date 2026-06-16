@@ -1326,6 +1326,32 @@ Behavior notes:
 - The older AirQualityAlertPolicy remains for source-derived reference policy tests until a dedicated cleanup removes it.
 ```
 
+### Iteration 22 — Foreground Monitoring Service Foundation
+
+Implemented the first Android always-on monitoring runtime slice:
+
+```text
+- foreground-service and data-sync foreground-service permissions added to the manifest
+- AirQualityMonitoringService declared with foregroundServiceType="dataSync"
+- AirQualityMonitoringServiceController added as the start/stop/refresh gateway
+- Android permission checker validates POST_NOTIFICATIONS before starting always-on monitoring
+- persistent monitoring notification channel, stable notification ID, open-app action, Refresh now action, and Stop action added
+- MonitoringLoopRunner performs one non-overlapping check through the existing AirGradient repository
+- loop runner persists NotificationDecisionEngine state and dispatches smart alert messages on success/failure
+- foreground service starts foreground immediately, owns a structured coroutine scope, polls at the persisted foreground interval, updates persistent status, and stops when mode is Off or device URL is removed
+- AppGraph wires the controller, loop runner, and persistent status notification updater
+- unit tests cover controller validation/start/stop/refresh and loop runner skip/success/failure/overlap behavior
+```
+
+Behavior notes:
+
+```text
+- Settings and dashboard controls for monitoring are still deferred; the controller exists for the next UI integration slice.
+- Battery-friendly WorkManager periodic checks remain deferred.
+- The persistent status notification is separate from smart alert notifications.
+- Smart alert cooldown/recovery state is shared with dashboard refresh through NotificationStateRepository.
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
