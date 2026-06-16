@@ -1474,6 +1474,35 @@ Validation passed:
 ./gradlew clean build
 ```
 
+### Iteration 28 — Battery-Friendly Worker Testability
+
+Implemented a focused WorkManager reliability and testability slice:
+
+```text
+- extracted battery-friendly worker branch logic into BatteryFriendlyMonitoringCheckRunner
+- kept AirQualityCheckWorker as a thin Android adapter that resolves the runner from AppGraph
+- introduced a MonitoringTickRunner contract so MonitoringLoopRunner can be substituted in pure unit tests
+- added unit tests for inactive-mode cancellation, missing-device-url disabling, and configured periodic tick execution
+- updated architecture docs to reflect the worker adapter and pure runner split
+```
+
+Behavior notes:
+
+```text
+- WorkManager still treats each scheduled execution as successful after the runner handles mode/config/tick outcomes.
+- The runtime behavior is intentionally unchanged; the slice makes periodic monitoring reconciliation directly testable.
+```
+
+Validation passed:
+
+```bash
+./gradlew :app:testDebugUnitTest --tests dev.worxbend.airgradient.worker.BatteryFriendlyMonitoringCheckRunnerTest
+./gradlew ktlintCheck
+./gradlew test ktlintCheck detekt lint
+./gradlew assembleDebugAndroidTest assembleRelease
+./gradlew clean build
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

@@ -45,6 +45,7 @@ import dev.worxbend.airgradient.service.AndroidMonitoringServiceGateway
 import dev.worxbend.airgradient.service.MonitoringLoopRunner
 import dev.worxbend.airgradient.service.PersistentStatusNotificationUpdater
 import dev.worxbend.airgradient.worker.AirQualityWorkerScheduler
+import dev.worxbend.airgradient.worker.BatteryFriendlyMonitoringCheckRunner
 
 class AppGraph(
     context: Context,
@@ -84,6 +85,14 @@ class AppGraph(
             monitoringRuntimeStateRepository = monitoringRuntimeStateRepository,
             notificationDecisionEngine = notificationDecisionEngine,
             notificationMessageDispatcher = notificationMessageDispatcher,
+        )
+
+    fun batteryFriendlyMonitoringCheckRunner(): BatteryFriendlyMonitoringCheckRunner =
+        BatteryFriendlyMonitoringCheckRunner(
+            settingsRepository = settingsRepository,
+            monitoringSettingsRepository = monitoringSettingsRepository,
+            periodicMonitoringScheduler = periodicMonitoringScheduler,
+            monitoringTickRunner = monitoringLoopRunner(),
         )
 
     fun persistentStatusNotificationUpdater(): PersistentStatusNotificationUpdater =

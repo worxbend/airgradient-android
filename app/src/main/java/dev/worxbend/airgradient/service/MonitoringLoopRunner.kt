@@ -21,6 +21,10 @@ import dev.worxbend.airgradient.domain.usecase.GetCurrentMeasurementUseCase
 import kotlinx.coroutines.sync.Mutex
 import java.time.Instant
 
+interface MonitoringTickRunner {
+    suspend fun runOneTick(settings: AppSettings): MonitoringTickResult
+}
+
 class MonitoringLoopRunner(
     private val getCurrentMeasurement: GetCurrentMeasurementUseCase,
     private val notificationStateRepository: NotificationStateRepository = NoOpNotificationStateRepository,
@@ -29,10 +33,10 @@ class MonitoringLoopRunner(
     private val notificationDecisionEngine: NotificationDecisionEngine = NotificationDecisionEngine(),
     private val notificationMessageDispatcher: NotificationMessageDispatcher = NoOpNotificationMessageDispatcher,
     private val clockProvider: ClockProvider = SystemClockProvider,
-) {
+) : MonitoringTickRunner {
     private val tickMutex = Mutex()
 
-    suspend fun runOneTick(settings: AppSettings): MonitoringTickResult {
+    override suspend fun runOneTick(settings: AppSettings): MonitoringTickResult {
         val checkedAt = clockProvider.now()
 
         return when {

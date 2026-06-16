@@ -97,9 +97,10 @@ a connected-network constraint. It is only started through `AirQualityMonitoring
 a device URL is configured, stops any active foreground-service command path, persists `BatteryFriendlyPeriodic` mode,
 and schedules the worker at the persisted periodic interval.
 
-`worker/AirQualityCheckWorker` loads current settings from `AppGraph`, refuses to run when mode is no longer
-`BatteryFriendlyPeriodic`, disables monitoring if the device URL has been removed, and delegates the actual fetch and
-notification decision path to `MonitoringLoopRunner`. The worker intentionally treats each scheduled execution as
+`worker/AirQualityCheckWorker` is a thin WorkManager adapter. It loads
+`BatteryFriendlyMonitoringCheckRunner` from `AppGraph`, and that pure Kotlin runner refuses to run when mode is no
+longer `BatteryFriendlyPeriodic`, disables monitoring if the device URL has been removed, and delegates the actual fetch
+and notification decision path to `MonitoringLoopRunner`. The worker intentionally treats each scheduled execution as
 best-effort success after the runner handles the result so WorkManager keeps the periodic schedule. WorkManager intervals
 are 15 minutes or longer and are inexact by Android design.
 
