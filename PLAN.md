@@ -1021,6 +1021,40 @@ Validation passed:
 ./gradlew clean build
 ```
 
+### Iteration 7 — Phase 6 Compose Dashboard UI
+
+Implemented the first production Compose dashboard surface:
+
+```text
+- DashboardScreen now renders immutable DashboardUiState instead of the placeholder-only UI
+- Material 3 scaffold with app title, device/status subtitle, refresh action, and settings action
+- adaptive dashboard grid for compact phones and wider/tablet widths
+- AQI hero card with semantic color gradient, status pill, trend label, last-updated label, and refreshing indicator
+- comfort cards for temperature and humidity
+- pollutant metric cards for CO2, PM2.5, PM1.0, PM10, PM0.3 count, TVOC, and NOx
+- stale-content warning panel for ContentWithWarning
+- empty configuration panel with Configure device action
+- loading skeleton state
+- typed error panel with retry and settings actions
+- previews for unconfigured, content, wide/tablet content, and error states
+```
+
+Behavior notes:
+
+```text
+- Screen-level composables receive state and callbacks only; networking and persistence remain outside Compose.
+- The current MainActivity still uses the no-argument DashboardScreen fallback, which renders the unconfigured state until Phase 7 navigation/settings wiring or DI/app graph wiring is introduced.
+- Pull-to-refresh is not implemented yet; Phase 6 currently provides app-bar/manual refresh callbacks and visual refreshing state.
+- Dashboard components were split under presentation/dashboard/components to keep detekt complexity limits passing.
+```
+
+Validation passed:
+
+```bash
+./gradlew test ktlintCheck detekt lint
+./gradlew clean build
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
