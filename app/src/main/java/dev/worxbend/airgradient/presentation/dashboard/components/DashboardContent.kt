@@ -14,22 +14,18 @@ import androidx.compose.ui.unit.dp
 import dev.worxbend.airgradient.domain.model.SensorMetric
 import dev.worxbend.airgradient.domain.model.SensorMetricKind
 import dev.worxbend.airgradient.domain.model.SensorStatus
+import dev.worxbend.airgradient.presentation.dashboard.DashboardMonitoringSummary
 
 @Composable
 internal fun DashboardContent(
-    metrics: List<SensorMetric>,
-    overallStatus: SensorStatus,
-    lastUpdatedLabel: String,
-    fetchStatusLabel: String,
-    refreshIntervalSeconds: Int,
-    isRefreshing: Boolean,
-    warningMessage: String? = null,
+    content: DashboardContentModel,
+    monitoringActions: DashboardMonitoringActions,
 ) {
-    val aqiMetric = metrics.firstMetric(SensorMetricKind.AQI)
+    val aqiMetric = content.metrics.firstMetric(SensorMetricKind.AQI)
     val comfortMetrics =
         listOfNotNull(
-            metrics.firstMetric(SensorMetricKind.TEMPERATURE),
-            metrics.firstMetric(SensorMetricKind.HUMIDITY),
+            content.metrics.firstMetric(SensorMetricKind.TEMPERATURE),
+            content.metrics.firstMetric(SensorMetricKind.HUMIDITY),
         )
     val pollutantMetrics =
         listOf(
@@ -40,7 +36,7 @@ internal fun DashboardContent(
             SensorMetricKind.PM003_COUNT,
             SensorMetricKind.TVOC,
             SensorMetricKind.NOX,
-        ).mapNotNull(metrics::firstMetric)
+        ).mapNotNull(content.metrics::firstMetric)
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val gridColumns =
@@ -64,17 +60,17 @@ internal fun DashboardContent(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (warningMessage != null) {
+            if (content.warningMessage != null) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    WarningPanel(message = warningMessage)
+                    WarningPanel(message = content.warningMessage)
                 }
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 AqiHeroCard(
                     metric = aqiMetric,
-                    overallStatus = overallStatus,
-                    lastUpdatedLabel = lastUpdatedLabel,
-                    isRefreshing = isRefreshing,
+                    overallStatus = content.overallStatus,
+                    lastUpdatedLabel = content.lastUpdatedLabel,
+                    isRefreshing = content.isRefreshing,
                 )
             }
             items(
@@ -92,12 +88,29 @@ internal fun DashboardContent(
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 RefreshStatusBar(
-                    fetchStatusLabel = fetchStatusLabel,
-                    refreshIntervalSeconds = refreshIntervalSeconds,
+                    fetchStatusLabel = content.fetchStatusLabel,
+                    refreshIntervalSeconds = content.refreshIntervalSeconds,
+                )
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                MonitoringStatusCard(
+                    summary = content.monitoringSummary,
+                    actions = monitoringActions,
                 )
             }
         }
     }
 }
+
+internal data class DashboardContentModel(
+    val metrics: List<SensorMetric>,
+    val overallStatus: SensorStatus,
+    val lastUpdatedLabel: String,
+    val fetchStatusLabel: String,
+    val refreshIntervalSeconds: Int,
+    val monitoringSummary: DashboardMonitoringSummary,
+    val isRefreshing: Boolean,
+    val warningMessage: String? = null,
+)
 
 private fun List<SensorMetric>.firstMetric(kind: SensorMetricKind): SensorMetric? = firstOrNull { it.kind == kind }

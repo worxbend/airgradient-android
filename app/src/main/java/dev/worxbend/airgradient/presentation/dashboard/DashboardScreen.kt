@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.worxbend.airgradient.presentation.dashboard.components.DashboardContent
+import dev.worxbend.airgradient.presentation.dashboard.components.DashboardContentModel
+import dev.worxbend.airgradient.presentation.dashboard.components.DashboardMonitoringActions
 import dev.worxbend.airgradient.presentation.dashboard.components.EmptyConfigurationPanel
 import dev.worxbend.airgradient.presentation.dashboard.components.ErrorDashboard
 import dev.worxbend.airgradient.presentation.dashboard.components.LoadingDashboard
@@ -37,6 +39,8 @@ fun DashboardScreen(
     onRefresh: () -> Unit,
     onOpenSettings: () -> Unit,
     onConfigureDevice: () -> Unit,
+    onStartMonitoring: () -> Unit,
+    onStopMonitoring: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     DashboardScaffold(
@@ -45,6 +49,11 @@ fun DashboardScreen(
         onOpenSettings = onOpenSettings,
         modifier = modifier,
     ) {
+        val monitoringActions =
+            DashboardMonitoringActions(
+                onStartMonitoring = onStartMonitoring,
+                onStopMonitoring = onStopMonitoring,
+            )
         when (state) {
             DashboardUiState.Unconfigured -> {
                 EmptyConfigurationPanel(onConfigureDevice = onConfigureDevice)
@@ -56,24 +65,15 @@ fun DashboardScreen(
 
             is DashboardUiState.Content -> {
                 DashboardContent(
-                    metrics = state.metrics,
-                    overallStatus = state.overallStatus,
-                    lastUpdatedLabel = state.lastUpdatedLabel,
-                    fetchStatusLabel = state.fetchStatusLabel,
-                    refreshIntervalSeconds = state.refreshIntervalSeconds,
-                    isRefreshing = state.isRefreshing,
+                    content = state.toDashboardContentModel(),
+                    monitoringActions = monitoringActions,
                 )
             }
 
             is DashboardUiState.ContentWithWarning -> {
                 DashboardContent(
-                    metrics = state.metrics,
-                    overallStatus = state.overallStatus,
-                    lastUpdatedLabel = state.lastUpdatedLabel,
-                    fetchStatusLabel = state.fetchStatusLabel,
-                    refreshIntervalSeconds = state.refreshIntervalSeconds,
-                    isRefreshing = state.isRefreshing,
-                    warningMessage = state.warning.message,
+                    content = state.toDashboardContentModel(),
+                    monitoringActions = monitoringActions,
                 )
             }
 
@@ -82,6 +82,8 @@ fun DashboardScreen(
                     error = state.reason,
                     lastUpdatedLabel = state.lastUpdatedLabel,
                     metrics = state.metrics,
+                    monitoringSummary = state.monitoringSummary,
+                    monitoringActions = monitoringActions,
                     onRetry = onRefresh,
                     onConfigureDevice = onConfigureDevice,
                 )
@@ -97,6 +99,8 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
         onRefresh = {},
         onOpenSettings = {},
         onConfigureDevice = {},
+        onStartMonitoring = {},
+        onStopMonitoring = {},
         modifier = modifier,
     )
 }
@@ -218,6 +222,29 @@ private fun DashboardUiState.isPullRefreshing(): Boolean =
         is DashboardUiState.Error,
         -> false
     }
+
+private fun DashboardUiState.Content.toDashboardContentModel(): DashboardContentModel =
+    DashboardContentModel(
+        metrics = metrics,
+        overallStatus = overallStatus,
+        lastUpdatedLabel = lastUpdatedLabel,
+        fetchStatusLabel = fetchStatusLabel,
+        refreshIntervalSeconds = refreshIntervalSeconds,
+        monitoringSummary = monitoringSummary,
+        isRefreshing = isRefreshing,
+    )
+
+private fun DashboardUiState.ContentWithWarning.toDashboardContentModel(): DashboardContentModel =
+    DashboardContentModel(
+        metrics = metrics,
+        overallStatus = overallStatus,
+        lastUpdatedLabel = lastUpdatedLabel,
+        fetchStatusLabel = fetchStatusLabel,
+        refreshIntervalSeconds = refreshIntervalSeconds,
+        monitoringSummary = monitoringSummary,
+        isRefreshing = isRefreshing,
+        warningMessage = warning.message,
+    )
 
 @Composable
 private fun backgroundBrush(): Brush =

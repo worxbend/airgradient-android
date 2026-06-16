@@ -86,3 +86,13 @@ interface MonitoringServiceGateway {
 
     fun refreshNow()
 }
+
+object NoOpMonitoringServiceController : MonitoringServiceController {
+    @Suppress("MaxLineLength")
+    override suspend fun startAlwaysOnMonitoring(): MonitoringServiceControllerResult = MonitoringServiceControllerResult.Started
+
+    @Suppress("MaxLineLength")
+    override suspend fun stopMonitoring(): MonitoringServiceControllerResult.Stopped = MonitoringServiceControllerResult.Stopped
+
+    override fun refreshNow() = Unit
+}

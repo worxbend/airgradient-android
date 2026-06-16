@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import dev.worxbend.airgradient.domain.model.SensorMetric
 import dev.worxbend.airgradient.domain.model.SensorStatus
 import dev.worxbend.airgradient.presentation.dashboard.DashboardError
+import dev.worxbend.airgradient.presentation.dashboard.DashboardMonitoringSummary
 
 @Composable
 internal fun RefreshStatusBar(
@@ -218,6 +219,8 @@ internal fun ErrorDashboard(
     error: DashboardError,
     lastUpdatedLabel: String?,
     metrics: List<SensorMetric>,
+    monitoringSummary: DashboardMonitoringSummary,
+    monitoringActions: DashboardMonitoringActions,
     onRetry: () -> Unit,
     onConfigureDevice: () -> Unit,
 ) {
@@ -236,12 +239,22 @@ internal fun ErrorDashboard(
         )
         if (metrics.isNotEmpty()) {
             DashboardContent(
-                metrics = metrics,
-                overallStatus = SensorStatus.UNKNOWN,
-                lastUpdatedLabel = lastUpdatedLabel ?: "Last update unavailable",
-                fetchStatusLabel = error.message,
-                refreshIntervalSeconds = 30,
-                isRefreshing = false,
+                content =
+                    DashboardContentModel(
+                        metrics = metrics,
+                        overallStatus = SensorStatus.UNKNOWN,
+                        lastUpdatedLabel = lastUpdatedLabel ?: "Last update unavailable",
+                        fetchStatusLabel = error.message,
+                        refreshIntervalSeconds = 30,
+                        monitoringSummary = monitoringSummary,
+                        isRefreshing = false,
+                    ),
+                monitoringActions = monitoringActions,
+            )
+        } else {
+            MonitoringStatusCard(
+                summary = monitoringSummary,
+                actions = monitoringActions,
             )
         }
     }

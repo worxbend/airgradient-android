@@ -10,7 +10,7 @@ Current baseline:
 
 - `MainActivity` is a thin Compose entry point.
 - `AirGradientTheme` centralizes Material 3 theme setup and dynamic color support.
-- `DashboardScreen` is a state-driven, previewable Compose dashboard with adaptive AQI, comfort, pollutant, loading, warning, error, and unconfigured states.
+- `DashboardScreen` is a state-driven, previewable Compose dashboard with adaptive AQI, comfort, pollutant, monitoring, loading, warning, error, and unconfigured states.
 - `domain/model` contains immutable snapshot, metric, status, theme, and trend models.
 - `domain/sensors` contains URL normalization, threshold classification, AQI fallback, trend calculation, and metric creation.
 - `domain/error` and `domain/repository` define typed AirGradient failures plus air-quality and settings repository contracts.
@@ -19,7 +19,7 @@ Current baseline:
 - `data/notifications` contains Android notification-channel setup and notification delivery.
 - `core/network` and `core/time` contain app-wide network construction and injectable time access.
 - `core/dispatchers` contains injectable coroutine dispatcher grouping for ViewModels and use cases.
-- `presentation/dashboard` contains the dashboard UI state model, presentation formatting, and ViewModel refresh orchestration.
+- `presentation/dashboard` contains the dashboard UI state model, presentation formatting, monitoring summary, and ViewModel refresh orchestration.
 - `presentation/settings` contains the settings form, Android 13+ notification permission request, always-on monitoring controls, and settings ViewModel.
 - `service` contains the always-on foreground monitoring service foundation, service controller, persistent status notification, and reusable monitoring loop runner.
 
@@ -73,12 +73,14 @@ structured coroutine scope, and delegates each device check to `MonitoringLoopRu
 
 `AirQualityMonitoringServiceController` is the only app-facing gateway for start, stop, and refresh-now commands. It
 validates that a device URL is configured and that Android 13+ notification permission is available before starting
-foreground monitoring. Settings UI routes notification permission requests through the route layer, then the
-`SettingsViewModel` calls the controller instead of constructing service intents directly.
+foreground monitoring. Settings and dashboard UI routes request notification permission through the route layer, then
+their ViewModels call the controller instead of constructing service intents directly.
 
 `MonitoringLoopRunner` reuses `GetCurrentMeasurementUseCase`, `NotificationDecisionEngine`,
 `NotificationStateRepository`, and `NotificationMessageDispatcher`. It prevents overlapping checks with a mutex, clears
 notification decision state when alerts are disabled, persists cooldown/recovery state when alerts are enabled, and
 returns typed `MonitoringTickResult` values for the service to render in the persistent notification.
 
-Battery-friendly WorkManager checks and dashboard monitoring status controls are still deferred.
+The dashboard observes `MonitoringSettings` and renders a compact monitoring card with the current mode, foreground
+polling interval, and quick start/stop actions. Battery-friendly WorkManager checks, last background check timestamps,
+and advanced alert preference controls are still deferred.

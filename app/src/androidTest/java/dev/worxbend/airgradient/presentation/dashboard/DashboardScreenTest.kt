@@ -37,6 +37,8 @@ class DashboardScreenTest {
                     onRefresh = {},
                     onOpenSettings = {},
                     onConfigureDevice = { configureClicks.incrementAndGet() },
+                    onStartMonitoring = {},
+                    onStopMonitoring = {},
                 )
             }
         }
@@ -54,6 +56,7 @@ class DashboardScreenTest {
     @Test
     fun contentStateShowsHeadlineMetricsAndRefreshes() {
         val refreshClicks = AtomicInteger(0)
+        val startMonitoringClicks = AtomicInteger(0)
 
         composeRule.setContent {
             AirGradientTheme(dynamicColor = false) {
@@ -62,6 +65,8 @@ class DashboardScreenTest {
                     onRefresh = { refreshClicks.incrementAndGet() },
                     onOpenSettings = {},
                     onConfigureDevice = {},
+                    onStartMonitoring = { startMonitoringClicks.incrementAndGet() },
+                    onStopMonitoring = {},
                 )
             }
         }
@@ -71,10 +76,14 @@ class DashboardScreenTest {
         composeRule.onAllNodesWithText("Good")[0].assertIsDisplayed()
         composeRule.onNodeWithText("Latest measurements loaded.").assertIsDisplayed()
         composeRule.onNodeWithText("30s").assertIsDisplayed()
+        composeRule.onNodeWithText("Background monitoring").assertIsDisplayed()
+        composeRule.onNodeWithText("Monitoring off").assertIsDisplayed()
+        composeRule.onNodeWithText("Start always-on").performClick()
         composeRule.onNodeWithContentDescription(REFRESH_ACTION_DESCRIPTION).assertIsEnabled().performClick()
 
         composeRule.runOnIdle {
             check(refreshClicks.get() == 1)
+            check(startMonitoringClicks.get() == 1)
         }
     }
 
@@ -101,6 +110,8 @@ class DashboardScreenTest {
                     onRefresh = { retryClicks.incrementAndGet() },
                     onOpenSettings = {},
                     onConfigureDevice = { configureClicks.incrementAndGet() },
+                    onStartMonitoring = {},
+                    onStopMonitoring = {},
                 )
             }
         }

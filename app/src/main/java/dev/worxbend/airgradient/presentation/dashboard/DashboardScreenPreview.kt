@@ -19,6 +19,8 @@ private fun DashboardScreenUnconfiguredPreview() {
             onRefresh = {},
             onOpenSettings = {},
             onConfigureDevice = {},
+            onStartMonitoring = {},
+            onStopMonitoring = {},
         )
     }
 }
@@ -32,6 +34,8 @@ private fun DashboardScreenContentPreview() {
             onRefresh = {},
             onOpenSettings = {},
             onConfigureDevice = {},
+            onStartMonitoring = {},
+            onStopMonitoring = {},
         )
     }
 }
@@ -45,6 +49,8 @@ private fun DashboardScreenWidePreview() {
             onRefresh = {},
             onOpenSettings = {},
             onConfigureDevice = {},
+            onStartMonitoring = {},
+            onStopMonitoring = {},
         )
     }
 }
@@ -69,6 +75,8 @@ private fun DashboardScreenErrorPreview() {
             onRefresh = {},
             onOpenSettings = {},
             onConfigureDevice = {},
+            onStartMonitoring = {},
+            onStopMonitoring = {},
         )
     }
 }

@@ -8,20 +8,19 @@ import dev.worxbend.airgradient.core.time.SystemClockProvider
 import dev.worxbend.airgradient.domain.error.AirGradientError
 import dev.worxbend.airgradient.domain.model.AirMeasureSnapshot
 import dev.worxbend.airgradient.domain.model.AppSettings
+import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
+import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
 import dev.worxbend.airgradient.domain.notifications.AirQualityConditionFactory
-import dev.worxbend.airgradient.domain.notifications.NoOpNotificationMessageDispatcher
 import dev.worxbend.airgradient.domain.notifications.NotificationDecision
-import dev.worxbend.airgradient.domain.notifications.NotificationDecisionEngine
-import dev.worxbend.airgradient.domain.notifications.NotificationMessageDispatcher
 import dev.worxbend.airgradient.domain.notifications.NotificationPolicy
 import dev.worxbend.airgradient.domain.notifications.NotificationState
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
-import dev.worxbend.airgradient.domain.repository.NoOpNotificationStateRepository
-import dev.worxbend.airgradient.domain.repository.NotificationStateRepository
 import dev.worxbend.airgradient.domain.sensors.SensorMetricFactory
 import dev.worxbend.airgradient.domain.sensors.SensorThresholds
 import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.RefreshDashboardUseCase
+import dev.worxbend.airgradient.service.MonitoringServiceControllerResult
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,18 +31,20 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 
+@Suppress("TooManyFunctions")
 class DashboardViewModel(
     private val observeSettings: ObserveSettingsUseCase,
     private val refreshDashboard: RefreshDashboardUseCase,
-    private val notificationStateRepository: NotificationStateRepository = NoOpNotificationStateRepository,
-    private val notificationDecisionEngine: NotificationDecisionEngine = NotificationDecisionEngine(),
-    private val notificationMessageDispatcher: NotificationMessageDispatcher = NoOpNotificationMessageDispatcher,
+    private val monitoringDependencies: DashboardMonitoringDependencies,
+    private val notificationDependencies: DashboardNotificationDependencies,
     private val clockProvider: ClockProvider = SystemClockProvider,
     private val dispatchers: AppDispatchers = AppDispatchers.production,
 ) : ViewModel() {
     private val refreshMutex = Mutex()
     private val _uiState = MutableStateFlow<DashboardUiState>(DashboardUiState.Loading)
     private var currentSettings = AppSettings.default
+    private var currentMonitoringSettings = MonitoringSettings.default
+    private var monitoringActionState: DashboardMonitoringActionState = DashboardMonitoringActionState.Idle
     private var latestSuccessfulSnapshot: AirMeasureSnapshot? = null
     private var previousSuccessfulSnapshot: AirMeasureSnapshot? = null
     private var autoRefreshJob: Job? = null
@@ -56,12 +57,59 @@ class DashboardViewModel(
                 .distinctUntilChanged()
                 .collect { settings -> handleSettingsChanged(settings) }
         }
+        viewModelScope.launch(dispatchers.io) {
+            monitoringDependencies
+                .observeMonitoringSettings()
+                .distinctUntilChanged()
+                .collect { settings -> handleMonitoringSettingsChanged(settings) }
+        }
     }
 
     fun refresh() {
         viewModelScope.launch(dispatchers.io) {
             refreshCurrentSettings()
         }
+    }
+
+    fun startAlwaysOnMonitoring() {
+        monitoringActionState = DashboardMonitoringActionState.Starting
+        updateMonitoringSummary()
+        viewModelScope.launch(dispatchers.io) {
+            val actionState =
+                when (val result = monitoringDependencies.monitoringServiceController.startAlwaysOnMonitoring()) {
+                    MonitoringServiceControllerResult.Started -> {
+                        DashboardMonitoringActionState.Started
+                    }
+
+                    MonitoringServiceControllerResult.Stopped -> {
+                        DashboardMonitoringActionState.Stopped
+                    }
+
+                    is MonitoringServiceControllerResult.Rejected -> {
+                        DashboardMonitoringActionState.Rejected(result.error)
+                    }
+                }
+            monitoringActionState = actionState
+            updateMonitoringSummary()
+        }
+    }
+
+    fun stopMonitoring() {
+        monitoringActionState = DashboardMonitoringActionState.Stopping
+        updateMonitoringSummary()
+        viewModelScope.launch(dispatchers.io) {
+            monitoringDependencies.monitoringServiceController.stopMonitoring()
+            monitoringActionState = DashboardMonitoringActionState.Stopped
+            updateMonitoringSummary()
+        }
+    }
+
+    fun onMonitoringPermissionDenied() {
+        monitoringActionState =
+            DashboardMonitoringActionState.Rejected(
+                MonitoringPolicyValidationError.MissingNotificationPermission,
+            )
+        updateMonitoringSummary()
     }
 
     override fun onCleared() {
@@ -75,17 +123,27 @@ class DashboardViewModel(
         if (settings.serverUrl.isNullOrBlank()) {
             autoRefreshJob?.cancel()
             autoRefreshJob = null
-            notificationStateRepository.clearNotificationState()
+            notificationDependencies.notificationStateRepository.clearNotificationState()
             latestSuccessfulSnapshot = null
             previousSuccessfulSnapshot = null
             _uiState.value = DashboardUiState.Unconfigured
         } else {
             if (!settings.notificationsEnabled) {
-                notificationStateRepository.clearNotificationState()
+                notificationDependencies.notificationStateRepository.clearNotificationState()
             }
             restartAutoRefresh(settings)
             refresh()
         }
+    }
+
+    private fun handleMonitoringSettingsChanged(settings: MonitoringSettings) {
+        currentMonitoringSettings = settings
+        if (settings.mode == MonitoringMode.AlwaysOnForegroundService &&
+            monitoringActionState == DashboardMonitoringActionState.Starting
+        ) {
+            monitoringActionState = DashboardMonitoringActionState.Started
+        }
+        updateMonitoringSummary()
     }
 
     private fun restartAutoRefresh(settings: AppSettings) {
@@ -151,7 +209,7 @@ class DashboardViewModel(
                 isRefreshing = false,
             )
         evaluateNotificationDecision(settings) { state, policy ->
-            notificationDecisionEngine.evaluateCondition(
+            notificationDependencies.notificationDecisionEngine.evaluateCondition(
                 condition = AirQualityConditionFactory.fromSnapshot(snapshot),
                 state = state,
                 policy = policy,
@@ -171,6 +229,7 @@ class DashboardViewModel(
                     lastKnownSnapshot = null,
                     metrics = emptyList(),
                     lastUpdatedLabel = null,
+                    monitoringSummary = monitoringSummary(),
                 )
             } else {
                 DashboardUiState.ContentWithWarning(
@@ -185,11 +244,12 @@ class DashboardViewModel(
                     lastUpdatedLabel = DashboardPresentationFormatter.lastUpdatedLabel(latestSnapshot),
                     fetchStatusLabel = DashboardPresentationFormatter.fetchFailureStatusLabel(error),
                     refreshIntervalSeconds = settings.refreshIntervalSeconds,
+                    monitoringSummary = monitoringSummary(),
                     isRefreshing = false,
                 )
             }
         evaluateNotificationDecision(settings) { state, policy ->
-            notificationDecisionEngine.evaluateFetchFailure(
+            notificationDependencies.notificationDecisionEngine.evaluateFetchFailure(
                 error = error,
                 now = clockProvider.now(),
                 state = state,
@@ -203,21 +263,21 @@ class DashboardViewModel(
         evaluate: (NotificationState, NotificationPolicy) -> NotificationDecision,
     ) {
         if (!settings.notificationsEnabled) {
-            notificationStateRepository.clearNotificationState()
+            notificationDependencies.notificationStateRepository.clearNotificationState()
             return
         }
 
-        val currentState = notificationStateRepository.getNotificationState()
+        val currentState = notificationDependencies.notificationStateRepository.getNotificationState()
         val decision =
             evaluate(
                 currentState,
                 NotificationPolicy.default.copy(notificationsEnabled = true),
             )
 
-        notificationStateRepository.saveNotificationState(decision.nextState)
+        notificationDependencies.notificationStateRepository.saveNotificationState(decision.nextState)
 
         if (decision is NotificationDecision.Notify) {
-            notificationMessageDispatcher.show(decision.message)
+            notificationDependencies.notificationMessageDispatcher.show(decision.message)
         }
     }
 
@@ -234,7 +294,30 @@ class DashboardViewModel(
             lastUpdatedLabel = DashboardPresentationFormatter.lastUpdatedLabel(snapshot),
             fetchStatusLabel = fetchStatusLabel,
             refreshIntervalSeconds = settings.refreshIntervalSeconds,
+            monitoringSummary = monitoringSummary(),
             isRefreshing = isRefreshing,
+        )
+
+    private fun updateMonitoringSummary() {
+        _uiState.value =
+            when (val state = _uiState.value) {
+                is DashboardUiState.Content -> state.copy(monitoringSummary = monitoringSummary())
+
+                is DashboardUiState.ContentWithWarning -> state.copy(monitoringSummary = monitoringSummary())
+
+                is DashboardUiState.Error -> state.copy(monitoringSummary = monitoringSummary())
+
+                DashboardUiState.Loading,
+                DashboardUiState.Unconfigured,
+                -> state
+            }
+    }
+
+    private fun monitoringSummary(): DashboardMonitoringSummary =
+        DashboardMonitoringSummary(
+            mode = currentMonitoringSettings.mode,
+            foregroundPollingIntervalSeconds = currentMonitoringSettings.foregroundPollingIntervalSeconds,
+            actionState = monitoringActionState,
         )
 
     private companion object {

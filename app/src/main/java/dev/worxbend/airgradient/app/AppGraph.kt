@@ -26,6 +26,8 @@ import dev.worxbend.airgradient.domain.usecase.SaveNotificationsEnabledUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveRefreshIntervalUseCase
 import dev.worxbend.airgradient.domain.usecase.SaveThemeModeUseCase
 import dev.worxbend.airgradient.domain.usecase.TestDeviceConnectionUseCase
+import dev.worxbend.airgradient.presentation.dashboard.DashboardMonitoringDependencies
+import dev.worxbend.airgradient.presentation.dashboard.DashboardNotificationDependencies
 import dev.worxbend.airgradient.presentation.dashboard.DashboardViewModel
 import dev.worxbend.airgradient.presentation.settings.SettingsUseCases
 import dev.worxbend.airgradient.presentation.settings.SettingsViewModel
@@ -80,9 +82,17 @@ class AppGraph(
             DashboardViewModel(
                 observeSettings = ObserveSettingsUseCase(settingsRepository),
                 refreshDashboard = RefreshDashboardUseCase(getCurrentMeasurement),
-                notificationStateRepository = notificationStateRepository,
-                notificationDecisionEngine = notificationDecisionEngine,
-                notificationMessageDispatcher = notificationMessageDispatcher,
+                monitoringDependencies =
+                    DashboardMonitoringDependencies(
+                        observeMonitoringSettings = ObserveMonitoringSettingsUseCase(monitoringSettingsRepository),
+                        monitoringServiceController = monitoringServiceController,
+                    ),
+                notificationDependencies =
+                    DashboardNotificationDependencies(
+                        notificationStateRepository = notificationStateRepository,
+                        notificationDecisionEngine = notificationDecisionEngine,
+                        notificationMessageDispatcher = notificationMessageDispatcher,
+                    ),
                 dispatchers = dispatchers,
             )
         }

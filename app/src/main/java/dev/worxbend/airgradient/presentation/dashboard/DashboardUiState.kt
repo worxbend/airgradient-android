@@ -4,6 +4,9 @@ import dev.worxbend.airgradient.domain.error.AirGradientError
 import dev.worxbend.airgradient.domain.model.AirMeasureSnapshot
 import dev.worxbend.airgradient.domain.model.SensorMetric
 import dev.worxbend.airgradient.domain.model.SensorStatus
+import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringPolicyValidationError
+import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
 
 sealed interface DashboardUiState {
     data object Unconfigured : DashboardUiState
@@ -17,6 +20,7 @@ sealed interface DashboardUiState {
         val lastUpdatedLabel: String,
         val fetchStatusLabel: String,
         val refreshIntervalSeconds: Int,
+        val monitoringSummary: DashboardMonitoringSummary = DashboardMonitoringSummary(),
         val isRefreshing: Boolean,
     ) : DashboardUiState
 
@@ -28,6 +32,7 @@ sealed interface DashboardUiState {
         val lastUpdatedLabel: String,
         val fetchStatusLabel: String,
         val refreshIntervalSeconds: Int,
+        val monitoringSummary: DashboardMonitoringSummary = DashboardMonitoringSummary(),
         val isRefreshing: Boolean,
     ) : DashboardUiState
 
@@ -36,7 +41,31 @@ sealed interface DashboardUiState {
         val lastKnownSnapshot: AirMeasureSnapshot?,
         val metrics: List<SensorMetric>,
         val lastUpdatedLabel: String?,
+        val monitoringSummary: DashboardMonitoringSummary = DashboardMonitoringSummary(),
     ) : DashboardUiState
+}
+
+data class DashboardMonitoringSummary(
+    val mode: MonitoringMode = MonitoringMode.Off,
+    val foregroundPollingIntervalSeconds: Int =
+        MonitoringSettings.DEFAULT_FOREGROUND_POLLING_INTERVAL_SECONDS,
+    val actionState: DashboardMonitoringActionState = DashboardMonitoringActionState.Idle,
+)
+
+sealed interface DashboardMonitoringActionState {
+    data object Idle : DashboardMonitoringActionState
+
+    data object Starting : DashboardMonitoringActionState
+
+    data object Started : DashboardMonitoringActionState
+
+    data object Stopping : DashboardMonitoringActionState
+
+    data object Stopped : DashboardMonitoringActionState
+
+    data class Rejected(
+        val error: MonitoringPolicyValidationError,
+    ) : DashboardMonitoringActionState
 }
 
 data class DashboardWarning(

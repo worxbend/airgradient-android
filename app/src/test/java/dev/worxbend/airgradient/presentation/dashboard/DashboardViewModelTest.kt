@@ -8,18 +8,25 @@ import dev.worxbend.airgradient.domain.model.AirMeasureSnapshot
 import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.domain.model.SensorMetricKind
+import dev.worxbend.airgradient.domain.monitoring.MonitoringMode
+import dev.worxbend.airgradient.domain.monitoring.MonitoringSettings
+import dev.worxbend.airgradient.domain.notifications.NotificationDecisionEngine
 import dev.worxbend.airgradient.domain.notifications.NotificationMessage
 import dev.worxbend.airgradient.domain.notifications.NotificationMessageDispatcher
 import dev.worxbend.airgradient.domain.notifications.NotificationState
 import dev.worxbend.airgradient.domain.notifications.NotificationType
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
 import dev.worxbend.airgradient.domain.repository.AirGradientRepository
+import dev.worxbend.airgradient.domain.repository.MonitoringSettingsRepository
 import dev.worxbend.airgradient.domain.repository.NotificationStateRepository
 import dev.worxbend.airgradient.domain.repository.SaveDeviceUrlResult
 import dev.worxbend.airgradient.domain.repository.SettingsRepository
 import dev.worxbend.airgradient.domain.usecase.GetCurrentMeasurementUseCase
+import dev.worxbend.airgradient.domain.usecase.ObserveMonitoringSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.ObserveSettingsUseCase
 import dev.worxbend.airgradient.domain.usecase.RefreshDashboardUseCase
+import dev.worxbend.airgradient.service.MonitoringServiceController
+import dev.worxbend.airgradient.service.MonitoringServiceControllerResult
 import dev.worxbend.airgradient.testing.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -32,6 +39,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import java.time.Duration
 import java.time.Instant
 import kotlin.math.max
 
@@ -188,9 +196,73 @@ class DashboardViewModelTest {
             viewModel.viewModelScope.cancel()
         }
 
+    @Test
+    fun `configured dashboard includes monitoring summary`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val viewModel =
+                viewModel(
+                    settings = configuredSettings,
+                    monitoringSettings =
+                        MonitoringSettings.default.copy(
+                            mode = MonitoringMode.AlwaysOnForegroundService,
+                            foregroundPollingIntervalSeconds = 60,
+                        ),
+                    repository =
+                        FakeAirGradientRepository(
+                            results = ArrayDeque(listOf(AirGradientFetchResult.Success(firstSnapshot))),
+                        ),
+                )
+            runCurrent()
+
+            val state = viewModel.uiState.value as DashboardUiState.Content
+            assertEquals(MonitoringMode.AlwaysOnForegroundService, state.monitoringSummary.mode)
+            assertEquals(60, state.monitoringSummary.foregroundPollingIntervalSeconds)
+            viewModel.viewModelScope.cancel()
+        }
+
+    @Test
+    fun `dashboard monitoring actions delegate to controller`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val monitoringRepository = FakeMonitoringSettingsRepository(MonitoringSettings.default)
+            val controller = RecordingMonitoringServiceController(monitoringRepository)
+            val viewModel =
+                viewModel(
+                    settings = configuredSettings,
+                    monitoringRepository = monitoringRepository,
+                    repository =
+                        FakeAirGradientRepository(
+                            results = ArrayDeque(listOf(AirGradientFetchResult.Success(firstSnapshot))),
+                        ),
+                    monitoringServiceController = controller,
+                )
+            runCurrent()
+
+            viewModel.startAlwaysOnMonitoring()
+            runCurrent()
+
+            var state = viewModel.uiState.value as DashboardUiState.Content
+            assertEquals(1, controller.startCalls)
+            assertEquals(MonitoringMode.AlwaysOnForegroundService, state.monitoringSummary.mode)
+
+            viewModel.stopMonitoring()
+            runCurrent()
+
+            state = viewModel.uiState.value as DashboardUiState.Content
+            assertEquals(1, controller.stopCalls)
+            assertEquals(MonitoringMode.Off, state.monitoringSummary.mode)
+            viewModel.viewModelScope.cancel()
+        }
+
     private fun viewModel(
         settings: AppSettings = AppSettings.default,
+        monitoringSettings: MonitoringSettings = MonitoringSettings.default,
+        monitoringRepository: FakeMonitoringSettingsRepository =
+            FakeMonitoringSettingsRepository(monitoringSettings),
         repository: FakeAirGradientRepository,
+        monitoringServiceController: MonitoringServiceController =
+            RecordingMonitoringServiceController(
+                monitoringRepository,
+            ),
         notificationStateRepository: NotificationStateRepository = FakeNotificationStateRepository(),
         notificationMessageDispatcher: NotificationMessageDispatcher = RecordingNotificationMessageDispatcher(),
     ): DashboardViewModel {
@@ -198,8 +270,17 @@ class DashboardViewModelTest {
         return DashboardViewModel(
             observeSettings = ObserveSettingsUseCase(FakeSettingsRepository(settings)),
             refreshDashboard = RefreshDashboardUseCase(GetCurrentMeasurementUseCase(repository)),
-            notificationStateRepository = notificationStateRepository,
-            notificationMessageDispatcher = notificationMessageDispatcher,
+            monitoringDependencies =
+                DashboardMonitoringDependencies(
+                    observeMonitoringSettings = ObserveMonitoringSettingsUseCase(monitoringRepository),
+                    monitoringServiceController = monitoringServiceController,
+                ),
+            notificationDependencies =
+                DashboardNotificationDependencies(
+                    notificationStateRepository = notificationStateRepository,
+                    notificationDecisionEngine = NotificationDecisionEngine(),
+                    notificationMessageDispatcher = notificationMessageDispatcher,
+                ),
             clockProvider = ClockProvider { Instant.parse("2026-06-16T00:00:00Z") },
             dispatchers =
                 AppDispatchers(
@@ -230,6 +311,59 @@ class DashboardViewModelTest {
         override suspend fun saveThemeMode(themeMode: AppThemeMode) {
             settingsState.value = settingsState.value.copy(themeMode = themeMode)
         }
+    }
+
+    private class FakeMonitoringSettingsRepository(
+        initialSettings: MonitoringSettings,
+    ) : MonitoringSettingsRepository {
+        private val settingsState = MutableStateFlow(initialSettings)
+
+        override fun observeMonitoringSettings(): Flow<MonitoringSettings> = settingsState
+
+        override suspend fun getMonitoringSettings(): MonitoringSettings = settingsState.value
+
+        override suspend fun updateMonitoringMode(mode: MonitoringMode) {
+            settingsState.value = settingsState.value.copy(mode = mode)
+        }
+
+        override suspend fun updateForegroundPollingInterval(interval: Duration) {
+            settingsState.value =
+                settingsState.value.copy(
+                    foregroundPollingIntervalSeconds =
+                        MonitoringSettings.requireSupportedForegroundInterval(interval),
+                )
+        }
+
+        override suspend fun updatePeriodicBackgroundInterval(interval: Duration) {
+            settingsState.value =
+                settingsState.value.copy(
+                    periodicBackgroundIntervalMinutes =
+                        MonitoringSettings.requireSupportedPeriodicInterval(interval),
+                )
+        }
+    }
+
+    private class RecordingMonitoringServiceController(
+        private val monitoringRepository: MonitoringSettingsRepository,
+    ) : MonitoringServiceController {
+        var startCalls: Int = 0
+            private set
+        var stopCalls: Int = 0
+            private set
+
+        override suspend fun startAlwaysOnMonitoring(): MonitoringServiceControllerResult {
+            startCalls += 1
+            monitoringRepository.updateMonitoringMode(MonitoringMode.AlwaysOnForegroundService)
+            return MonitoringServiceControllerResult.Started
+        }
+
+        override suspend fun stopMonitoring(): MonitoringServiceControllerResult.Stopped {
+            stopCalls += 1
+            monitoringRepository.updateMonitoringMode(MonitoringMode.Off)
+            return MonitoringServiceControllerResult.Stopped
+        }
+
+        override fun refreshNow() = Unit
     }
 
     private class FakeNotificationStateRepository : NotificationStateRepository {

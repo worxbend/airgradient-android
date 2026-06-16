@@ -1374,6 +1374,29 @@ Behavior notes:
 - The settings screen starts/stops monitoring through the controller; Composables still do not construct service intents.
 ```
 
+### Iteration 24 — Dashboard Monitoring Controls
+
+Implemented dashboard-facing always-on monitoring controls:
+
+```text
+- DashboardViewModel now observes MonitoringSettings alongside app settings
+- dashboard content/error states include a DashboardMonitoringSummary
+- dashboard route requests POST_NOTIFICATIONS before starting always-on monitoring on Android 13+
+- dashboard content shows Background monitoring status, selected foreground interval, and Start always-on / Stop monitoring actions
+- dashboard start/stop actions delegate through MonitoringServiceController; Composables still do not create service intents
+- grouped dashboard monitoring and notification dependencies to keep ViewModel construction explicit without widening constructor sprawl
+- unit tests cover monitoring summary propagation and controller delegation
+- Compose UI tests cover the dashboard monitoring card and start action callback
+```
+
+Behavior notes:
+
+```text
+- Settings remains the full monitoring configuration surface.
+- Dashboard exposes quick always-on start/stop only for configured dashboard states.
+- Battery-friendly WorkManager monitoring, last background check timestamps, minimum alert severity, recovery toggles, and device-unreachable toggles remain deferred.
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
