@@ -4,6 +4,7 @@
 
 - Kotlin and Jetpack Compose are the only supported application implementation stack.
 - Use the repository Gradle wrapper for all builds.
+- Set `JAVA_HOME` to a JDK 21 installation. Do not commit `org.gradle.java.home`; it is machine-specific and breaks CI runners.
 - Keep local SDK paths in `local.properties`; do not commit machine-specific paths.
 
 ## Validation
@@ -32,6 +33,18 @@ Run release assembly before release-readiness checkpoints:
 ```bash
 ./gradlew assembleRelease
 ```
+
+## Continuous Integration
+
+GitHub Actions validates pushes and pull requests to `main` with:
+
+```bash
+./gradlew test ktlintCheck detekt lint
+./gradlew assembleDebugAndroidTest
+./gradlew assembleRelease
+```
+
+The workflow uploads the packaged debug instrumentation APK and unsigned release APK as artifacts. `connectedDebugAndroidTest` remains a local/device-lab command because the default workflow does not start an emulator.
 
 ## Source Layout
 

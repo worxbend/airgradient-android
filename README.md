@@ -10,6 +10,8 @@ The app is being implemented incrementally from `PLAN.md`. The current codebase 
 - Android SDK with API 36 installed
 - Gradle wrapper from this repository
 
+Set `JAVA_HOME` to a JDK 21 installation before running Gradle. The repository intentionally does not pin `org.gradle.java.home` to a machine-specific path so local builds and GitHub Actions use the same wrapper configuration.
+
 If `ANDROID_HOME` is not exported, create a local `local.properties` file:
 
 ```properties
@@ -27,6 +29,8 @@ sdk.dir=/home/worxbend/Android/Sdk
 ./gradlew assembleDebug
 ./gradlew assembleRelease
 ```
+
+GitHub Actions runs the same validation gates on pushes and pull requests to `main`, then packages the debug instrumentation APK and unsigned release APK as workflow artifacts.
 
 ## Local Device Setup
 

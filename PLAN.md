@@ -1187,6 +1187,26 @@ Behavior notes:
 - `assembleDebugAndroidTest` compiles and packages the instrumentation tests; `connectedDebugAndroidTest` still requires an attached emulator or device and was not run in this headless iteration.
 ```
 
+### Iteration 13 — Android CI Workflow
+
+Implemented the missing continuous-integration slice:
+
+```text
+- added GitHub Actions workflow for pushes, pull requests, and manual runs
+- CI sets up Temurin JDK 21 and the repository Gradle wrapper
+- CI runs unit tests, ktlint, detekt, Android lint, instrumentation-test packaging, and release assembly
+- CI uploads the debug instrumentation APK and unsigned release APK as workflow artifacts
+- removed the committed machine-specific org.gradle.java.home path so local and CI builds use JAVA_HOME consistently
+- documented CI behavior and local JDK configuration in README and development docs
+```
+
+Behavior notes:
+
+```text
+- connectedDebugAndroidTest still requires an attached emulator or device and is intentionally not part of the default GitHub-hosted workflow.
+- CI runs validation steps separately from artifact-producing tasks to avoid the Gradle scheduling issue noted in earlier iterations when clean is queued alongside build outputs.
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
