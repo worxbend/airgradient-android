@@ -1090,6 +1090,39 @@ Validation passed:
 ./gradlew clean build
 ```
 
+### Iteration 9 — Phase 8 Foreground Notifications
+
+Implemented the first Android notification slice:
+
+```text
+- pure Kotlin AirQualityAlertPolicy with source-derived thresholds, consecutive-reading rules, 20-minute cooldown, escalation bypass, recovery clearing, and offline failure alerts
+- typed AirQualityAlert, AirQualityAlertKind, AirQualityAlertSeverity, and AirQualityAlertNotifier domain contracts
+- AndroidAirQualityAlertNotifier with air-quality notification channel, stable per-kind notification IDs, launch intent, concise alert copy, and Android 13+ permission guard
+- manifest POST_NOTIFICATIONS permission
+- settings toggle now requests POST_NOTIFICATIONS on Android 13+ before persisting enabled notifications
+- DashboardViewModel evaluates alerts after successful readings and fetch failures only when notifications are enabled
+- disabling notifications or clearing configuration resets alert policy state
+- unit tests for sensor alerts, cooldown, escalation, recovery, offline failure count, success reset, and ViewModel notification triggering
+```
+
+Behavior notes:
+
+```text
+- Notifications remain disabled by default.
+- This slice does not add WorkManager or background polling; alerts are driven by foreground dashboard refreshes only.
+- If Android notification permission is denied, the setting remains off and the settings screen shows a concise denial message.
+```
+
+Validation passed:
+
+```bash
+./gradlew test
+./gradlew ktlintCheck
+./gradlew detekt
+./gradlew lint
+./gradlew clean build
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:

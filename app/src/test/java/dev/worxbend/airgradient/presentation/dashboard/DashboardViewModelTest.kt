@@ -2,11 +2,16 @@ package dev.worxbend.airgradient.presentation.dashboard
 
 import androidx.lifecycle.viewModelScope
 import dev.worxbend.airgradient.core.dispatchers.AppDispatchers
+import dev.worxbend.airgradient.core.time.ClockProvider
 import dev.worxbend.airgradient.domain.error.AirGradientError
 import dev.worxbend.airgradient.domain.model.AirMeasureSnapshot
 import dev.worxbend.airgradient.domain.model.AppSettings
 import dev.worxbend.airgradient.domain.model.AppThemeMode
 import dev.worxbend.airgradient.domain.model.SensorMetricKind
+import dev.worxbend.airgradient.domain.notifications.AirQualityAlert
+import dev.worxbend.airgradient.domain.notifications.AirQualityAlertKind
+import dev.worxbend.airgradient.domain.notifications.AirQualityAlertNotifier
+import dev.worxbend.airgradient.domain.notifications.AirQualityAlertPolicy
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
 import dev.worxbend.airgradient.domain.repository.AirGradientRepository
 import dev.worxbend.airgradient.domain.repository.SaveDeviceUrlResult
@@ -153,14 +158,50 @@ class DashboardViewModelTest {
             viewModel.viewModelScope.cancel()
         }
 
+    @Test
+    fun `notifications are sent after consecutive degraded readings when enabled`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val notifier = RecordingAirQualityAlertNotifier()
+            val repository =
+                FakeAirGradientRepository(
+                    results =
+                        ArrayDeque(
+                            listOf(
+                                AirGradientFetchResult.Success(firstSnapshot.copy(co2 = 1_000.0)),
+                                AirGradientFetchResult.Success(firstSnapshot.copy(co2 = 1_000.0)),
+                            ),
+                        ),
+                )
+            val viewModel =
+                viewModel(
+                    settings = configuredSettings.copy(notificationsEnabled = true),
+                    repository = repository,
+                    alertNotifier = notifier,
+                )
+            runCurrent()
+
+            assertTrue(notifier.alerts.isEmpty())
+
+            viewModel.refresh()
+            runCurrent()
+
+            assertEquals(1, notifier.alerts.size)
+            assertEquals(AirQualityAlertKind.CO2, notifier.alerts.single().kind)
+            viewModel.viewModelScope.cancel()
+        }
+
     private fun viewModel(
         settings: AppSettings = AppSettings.default,
         repository: FakeAirGradientRepository,
+        alertNotifier: AirQualityAlertNotifier = RecordingAirQualityAlertNotifier(),
     ): DashboardViewModel {
         val dispatcher = mainDispatcherRule.dispatcher
         return DashboardViewModel(
             observeSettings = ObserveSettingsUseCase(FakeSettingsRepository(settings)),
             refreshDashboard = RefreshDashboardUseCase(GetCurrentMeasurementUseCase(repository)),
+            alertPolicy = AirQualityAlertPolicy(),
+            alertNotifier = alertNotifier,
+            clockProvider = ClockProvider { Instant.parse("2026-06-16T00:00:00Z") },
             dispatchers =
                 AppDispatchers(
                     io = dispatcher,
@@ -189,6 +230,14 @@ class DashboardViewModelTest {
 
         override suspend fun saveThemeMode(themeMode: AppThemeMode) {
             settingsState.value = settingsState.value.copy(themeMode = themeMode)
+        }
+    }
+
+    private class RecordingAirQualityAlertNotifier : AirQualityAlertNotifier {
+        val alerts = mutableListOf<AirQualityAlert>()
+
+        override fun showAlert(alert: AirQualityAlert) {
+            alerts += alert
         }
     }
 

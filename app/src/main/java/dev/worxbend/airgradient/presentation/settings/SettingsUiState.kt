@@ -9,6 +9,7 @@ data class SettingsUiState(
     val deviceUrlPreview: DeviceUrlPreview = DeviceUrlPreview.Empty,
     val refreshIntervalSeconds: Int = AppSettings.DEFAULT_REFRESH_INTERVAL_SECONDS,
     val notificationsEnabled: Boolean = false,
+    val notificationPermissionDenied: Boolean = false,
     val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
     val saveState: DeviceUrlSaveState = DeviceUrlSaveState.Idle,
     val connectionTestState: ConnectionTestState = ConnectionTestState.Idle,

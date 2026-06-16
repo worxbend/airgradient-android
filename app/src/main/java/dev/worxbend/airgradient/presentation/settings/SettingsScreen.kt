@@ -127,6 +127,7 @@ private fun SettingsContent(
             SettingsSection(title = "Notifications") {
                 NotificationsRow(
                     enabled = state.notificationsEnabled,
+                    permissionDenied = state.notificationPermissionDenied,
                     onEnabledChanged = actions.onNotificationsEnabledChanged,
                 )
             }
@@ -178,6 +179,7 @@ private fun SettingsSection(
 @Composable
 private fun NotificationsRow(
     enabled: Boolean,
+    permissionDenied: Boolean,
     onEnabledChanged: (Boolean) -> Unit,
 ) {
     Row(
@@ -195,9 +197,19 @@ private fun NotificationsRow(
                 fontWeight = FontWeight.Medium,
             )
             Text(
-                text = "Notify when readings stay degraded. Disabled by default.",
+                text =
+                    if (permissionDenied) {
+                        "Android notification permission was denied. Alerts remain off."
+                    } else {
+                        "Notify when readings stay degraded. Disabled by default."
+                    },
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color =
+                    if (permissionDenied) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
             )
         }
         Switch(

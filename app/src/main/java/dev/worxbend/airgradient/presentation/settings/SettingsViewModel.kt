@@ -110,9 +110,26 @@ class SettingsViewModel(
     }
 
     fun onNotificationsEnabledChanged(enabled: Boolean) {
-        _uiState.update { state -> state.copy(notificationsEnabled = enabled) }
+        _uiState.update { state ->
+            state.copy(
+                notificationsEnabled = enabled,
+                notificationPermissionDenied = false,
+            )
+        }
         viewModelScope.launch(dispatchers.io) {
             saveNotificationsEnabled(enabled)
+        }
+    }
+
+    fun onNotificationPermissionDenied() {
+        _uiState.update { state ->
+            state.copy(
+                notificationsEnabled = false,
+                notificationPermissionDenied = true,
+            )
+        }
+        viewModelScope.launch(dispatchers.io) {
+            saveNotificationsEnabled(false)
         }
     }
 
@@ -135,6 +152,12 @@ class SettingsViewModel(
                     },
                 refreshIntervalSeconds = settings.refreshIntervalSeconds,
                 notificationsEnabled = settings.notificationsEnabled,
+                notificationPermissionDenied =
+                    if (settings.notificationsEnabled) {
+                        false
+                    } else {
+                        state.notificationPermissionDenied
+                    },
                 themeMode = settings.themeMode,
             )
         }

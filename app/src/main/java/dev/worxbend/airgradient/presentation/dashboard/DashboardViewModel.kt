@@ -3,9 +3,15 @@ package dev.worxbend.airgradient.presentation.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.worxbend.airgradient.core.dispatchers.AppDispatchers
+import dev.worxbend.airgradient.core.time.ClockProvider
+import dev.worxbend.airgradient.core.time.SystemClockProvider
 import dev.worxbend.airgradient.domain.error.AirGradientError
 import dev.worxbend.airgradient.domain.model.AirMeasureSnapshot
 import dev.worxbend.airgradient.domain.model.AppSettings
+import dev.worxbend.airgradient.domain.notifications.AirQualityAlert
+import dev.worxbend.airgradient.domain.notifications.AirQualityAlertNotifier
+import dev.worxbend.airgradient.domain.notifications.AirQualityAlertPolicy
+import dev.worxbend.airgradient.domain.notifications.NoOpAirQualityAlertNotifier
 import dev.worxbend.airgradient.domain.repository.AirGradientFetchResult
 import dev.worxbend.airgradient.domain.sensors.SensorMetricFactory
 import dev.worxbend.airgradient.domain.sensors.SensorThresholds
@@ -24,6 +30,9 @@ import kotlinx.coroutines.sync.Mutex
 class DashboardViewModel(
     private val observeSettings: ObserveSettingsUseCase,
     private val refreshDashboard: RefreshDashboardUseCase,
+    private val alertPolicy: AirQualityAlertPolicy = AirQualityAlertPolicy(),
+    private val alertNotifier: AirQualityAlertNotifier = NoOpAirQualityAlertNotifier,
+    private val clockProvider: ClockProvider = SystemClockProvider,
     private val dispatchers: AppDispatchers = AppDispatchers.production,
 ) : ViewModel() {
     private val refreshMutex = Mutex()
@@ -60,10 +69,14 @@ class DashboardViewModel(
         if (settings.serverUrl.isNullOrBlank()) {
             autoRefreshJob?.cancel()
             autoRefreshJob = null
+            alertPolicy.clear()
             latestSuccessfulSnapshot = null
             previousSuccessfulSnapshot = null
             _uiState.value = DashboardUiState.Unconfigured
         } else {
+            if (!settings.notificationsEnabled) {
+                alertPolicy.clear()
+            }
             restartAutoRefresh(settings)
             refresh()
         }
@@ -131,6 +144,9 @@ class DashboardViewModel(
                 fetchStatusLabel = LOADED_STATUS_LABEL,
                 isRefreshing = false,
             )
+        notifyIfEnabled(settings) {
+            alertPolicy.evaluateSnapshot(snapshot, clockProvider.now())
+        }
     }
 
     private fun emitFailure(
@@ -162,6 +178,21 @@ class DashboardViewModel(
                     isRefreshing = false,
                 )
             }
+        notifyIfEnabled(settings) {
+            alertPolicy.evaluateFetchFailure(error, clockProvider.now())
+        }
+    }
+
+    private fun notifyIfEnabled(
+        settings: AppSettings,
+        alerts: () -> List<AirQualityAlert>,
+    ) {
+        if (!settings.notificationsEnabled) {
+            alertPolicy.clear()
+            return
+        }
+
+        alerts().forEach(alertNotifier::showAlert)
     }
 
     private fun contentState(

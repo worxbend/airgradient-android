@@ -10,15 +10,17 @@ Current baseline:
 
 - `MainActivity` is a thin Compose entry point.
 - `AirGradientTheme` centralizes Material 3 theme setup and dynamic color support.
-- `DashboardScreen` is a temporary previewable Compose surface that will be replaced by state-driven dashboard components.
+- `DashboardScreen` is a state-driven, previewable Compose dashboard with adaptive AQI, comfort, pollutant, loading, warning, error, and unconfigured states.
 - `domain/model` contains immutable snapshot, metric, status, theme, and trend models.
 - `domain/sensors` contains URL normalization, threshold classification, AQI fallback, trend calculation, and metric creation.
 - `domain/error` and `domain/repository` define typed AirGradient failures plus air-quality and settings repository contracts.
 - `data/airgradient` contains the Retrofit API, remote data source, DTO wrapper, mapper, and repository implementation for `/measures/current`.
 - `data/settings` contains the DataStore preferences delegate, settings data source, and settings repository implementation.
+- `data/notifications` contains Android notification-channel setup and notification delivery.
 - `core/network` and `core/time` contain app-wide network construction and injectable time access.
 - `core/dispatchers` contains injectable coroutine dispatcher grouping for ViewModels and use cases.
 - `presentation/dashboard` contains the dashboard UI state model, presentation formatting, and ViewModel refresh orchestration.
+- `presentation/settings` contains the settings form, Android 13+ notification permission request, and settings ViewModel.
 
 Planned package responsibilities:
 
@@ -45,3 +47,9 @@ The settings repository normalizes device URLs before storage. Blank input clear
 `DashboardViewModel` observes `SettingsRepository` through `ObserveSettingsUseCase`. When no device URL is configured it emits `DashboardUiState.Unconfigured` and does not fetch. When configured, it performs an initial refresh and starts an active-screen auto-refresh loop using the stored interval.
 
 Refreshes are guarded by a coroutine mutex so manual refresh and timer refresh cannot overlap. Successful readings keep both the latest and previous snapshots in memory so `SensorMetricFactory` can produce trend-aware metrics. Fetch failures do not erase the last successful reading: the ViewModel emits `ContentWithWarning` when possible, or `Error` when no snapshot has ever loaded.
+
+## Notifications
+
+Notification rules live in pure Kotlin under `domain/notifications`. `AirQualityAlertPolicy` mirrors the reference behavior: sensor alerts require two consecutive degraded readings, device-offline alerts require three consecutive fetch failures, repeated alerts are cooled down for 20 minutes per kind, severity escalation bypasses cooldown, successful readings clear offline state, and recovery clears per-sensor consecutive state.
+
+Android delivery is isolated in `data/notifications/AndroidAirQualityAlertNotifier`. It creates a single air-quality alert channel, checks `POST_NOTIFICATIONS` on Android 13+, and never sends when permission is missing. `DashboardViewModel` evaluates alerts only when settings enable notifications; disabling notifications clears policy state. Background polling is intentionally not implemented yet, so notifications are currently driven by foreground dashboard refreshes.
