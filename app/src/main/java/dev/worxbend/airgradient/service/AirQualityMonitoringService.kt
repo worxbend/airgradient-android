@@ -4,6 +4,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
+import android.os.PowerManager
 import dev.worxbend.airgradient.AirGradientApplication
 import dev.worxbend.airgradient.app.AppGraph
 import dev.worxbend.airgradient.domain.model.AppSettings
@@ -21,6 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.Instant
 
 @Suppress("TooManyFunctions")
@@ -112,10 +114,16 @@ class AirQualityMonitoringService : Service() {
                         appGraph.monitoringSettingsRepository
                             .getMonitoringSettings()
                             .foregroundPollingInterval
-                    val effectiveDelay = adaptiveBackoff.updateAndGetDelay(tickResult, configuredInterval)
+                    val adaptiveDelay = adaptiveBackoff.updateAndGetDelay(tickResult, configuredInterval)
+                    val effectiveDelay = applyBatterySaverMinimum(adaptiveDelay)
                     delay(effectiveDelay.toMillis())
                 }
             }
+    }
+
+    private fun applyBatterySaverMinimum(delay: Duration): Duration {
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        return effectiveDelayWithBatterySaver(delay, isBatterySaverActive = powerManager.isPowerSaveMode)
     }
 
     private fun refreshNow() {
@@ -195,6 +203,18 @@ class AirQualityMonitoringService : Service() {
     }
 
     companion object {
+        internal val BATTERY_SAVER_MIN_INTERVAL: Duration = Duration.ofMinutes(15)
+
+        internal fun effectiveDelayWithBatterySaver(
+            adaptiveDelay: Duration,
+            isBatterySaverActive: Boolean,
+        ): Duration =
+            if (isBatterySaverActive) {
+                maxOf(adaptiveDelay, BATTERY_SAVER_MIN_INTERVAL)
+            } else {
+                adaptiveDelay
+            }
+
         const val ACTION_START = "dev.worxbend.airgradient.action.START_MONITORING"
         const val ACTION_REFRESH_NOW = "dev.worxbend.airgradient.action.REFRESH_MONITORING_NOW"
         const val ACTION_STOP = "dev.worxbend.airgradient.action.STOP_MONITORING"

@@ -325,6 +325,58 @@ class MonitoringLoopRunnerTest {
             assertTrue(first.await() is MonitoringTickResult.Success)
         }
 
+    @Test
+    fun `notification state is cleared only once when notifications are disabled across multiple success ticks`() =
+        runTest {
+            val stateRepository = CountingNotificationStateRepository()
+            val runner = runner(repository = FakeAirGradientRepository(), stateRepository = stateRepository)
+            val settingsDisabled = settings(notificationsEnabled = false)
+
+            runner.runOneTick(settingsDisabled)
+            runner.runOneTick(settingsDisabled)
+            runner.runOneTick(settingsDisabled)
+
+            assertEquals(1, stateRepository.clearCount)
+        }
+
+    @Test
+    fun `notification state is cleared only once when notifications are disabled across multiple failure ticks`() =
+        runTest {
+            val stateRepository = CountingNotificationStateRepository()
+            val runner =
+                runner(
+                    repository = FakeAirGradientRepository(AirGradientFetchResult.Failure(AirGradientError.Timeout)),
+                    stateRepository = stateRepository,
+                )
+            val settingsDisabled = settings(notificationsEnabled = false)
+
+            runner.runOneTick(settingsDisabled)
+            runner.runOneTick(settingsDisabled)
+            runner.runOneTick(settingsDisabled)
+
+            assertEquals(1, stateRepository.clearCount)
+        }
+
+    @Test
+    fun `notification state is re-cleared after re-enabling notifications then disabling again`() =
+        runTest {
+            val stateRepository = CountingNotificationStateRepository()
+            val runner = runner(repository = FakeAirGradientRepository(), stateRepository = stateRepository)
+
+            // First disabled run: clears once
+            runner.runOneTick(settings(notificationsEnabled = false))
+            runner.runOneTick(settings(notificationsEnabled = false))
+
+            // Re-enable: writes state, marks as populated
+            runner.runOneTick(settings(notificationsEnabled = true))
+
+            // Disable again: should clear once more
+            runner.runOneTick(settings(notificationsEnabled = false))
+            runner.runOneTick(settings(notificationsEnabled = false))
+
+            assertEquals(2, stateRepository.clearCount)
+        }
+
     private fun runner(
         repository: FakeAirGradientRepository,
         stateRepository: NotificationStateRepository = InMemoryNotificationStateRepository(),
@@ -389,6 +441,29 @@ class MonitoringLoopRunnerTest {
         }
 
         override suspend fun clearNotificationState() {
+            state = NotificationState.default
+        }
+    }
+
+    private class CountingNotificationStateRepository : NotificationStateRepository {
+        var clearCount = 0
+            private set
+        private var state = NotificationState.default
+
+        override fun observeNotificationState(): Flow<NotificationState> = flowOf(state)
+
+        override suspend fun getNotificationState(): NotificationState = state
+
+        override suspend fun saveNotificationState(state: NotificationState) {
+            this.state = state
+        }
+
+        override suspend fun updateNotificationState(transform: (NotificationState) -> NotificationState) {
+            state = transform(state)
+        }
+
+        override suspend fun clearNotificationState() {
+            clearCount++
             state = NotificationState.default
         }
     }

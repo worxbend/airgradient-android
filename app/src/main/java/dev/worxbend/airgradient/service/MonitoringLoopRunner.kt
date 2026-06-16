@@ -36,6 +36,10 @@ class MonitoringLoopRunner(
 ) : MonitoringTickRunner {
     private val tickMutex = Mutex()
 
+    // Tracks whether notification state has been written since the last clear.
+    // Avoids a DataStore write on every tick when notifications are disabled and state is already empty.
+    private var notificationStateMayBePopulated = true
+
     override suspend fun runOneTick(settings: AppSettings): MonitoringTickResult {
         val checkedAt = clockProvider.now()
 
@@ -76,6 +80,7 @@ class MonitoringLoopRunner(
         checkedAt: Instant,
     ): MonitoringTickResult.Success {
         if (settings.notificationsEnabled) {
+            notificationStateMayBePopulated = true
             val state = notificationStateRepository.getNotificationState()
             val decision =
                 notificationDecisionEngine.evaluateCondition(
@@ -85,7 +90,7 @@ class MonitoringLoopRunner(
                 )
             persistAndDispatch(decision)
         } else {
-            notificationStateRepository.clearNotificationState()
+            clearNotificationStateIfNeeded()
         }
 
         return MonitoringTickResult.Success(snapshot = result.snapshot, checkedAt = checkedAt)
@@ -99,7 +104,7 @@ class MonitoringLoopRunner(
         val consecutiveFailureCount = nextRuntimeFailureCount()
 
         if (!settings.notificationsEnabled) {
-            notificationStateRepository.clearNotificationState()
+            clearNotificationStateIfNeeded()
             return MonitoringTickResult.Failure(
                 error = result.error,
                 consecutiveFailureCount = consecutiveFailureCount,
@@ -107,6 +112,7 @@ class MonitoringLoopRunner(
             )
         }
 
+        notificationStateMayBePopulated = true
         val state = notificationStateRepository.getNotificationState()
         val failureDecision =
             notificationDecisionEngine.evaluateFetchFailure(
@@ -126,6 +132,13 @@ class MonitoringLoopRunner(
 
     private suspend fun nextRuntimeFailureCount(): Int =
         monitoringRuntimeStateRepository.getMonitoringRuntimeState().consecutiveFailureCount + 1
+
+    private suspend fun clearNotificationStateIfNeeded() {
+        if (notificationStateMayBePopulated) {
+            notificationStateRepository.clearNotificationState()
+            notificationStateMayBePopulated = false
+        }
+    }
 
     private suspend fun persistAndDispatch(decision: NotificationDecision) {
         notificationStateRepository.saveNotificationState(decision.nextState)

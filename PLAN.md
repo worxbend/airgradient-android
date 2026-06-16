@@ -1749,6 +1749,42 @@ Validation passed:
 ./gradlew clean build assembleRelease
 ```
 
+### Iteration 41 — Battery Saver Enforcement And Reduced State Writes
+
+Implemented battery optimization Phase 5 and Phase 7:
+
+```text
+- AirQualityMonitoringService now checks PowerManager.isPowerSaveMode before computing the effective delay
+- when battery saver is active, the effective polling delay is clamped to at least 15 minutes regardless
+  of the configured interval or adaptive backoff value
+- effectiveDelayWithBatterySaver() extracted as an internal companion function for testability
+- 6 unit tests in BatterySaverDelayTest cover battery-saver inactive, shorter delay enforcement,
+  longer delay passthrough, exact minimum, 30-second delay enforcement, and 30-second inactive passthrough
+- MonitoringLoopRunner now tracks notificationStateMayBePopulated in memory to skip redundant
+  DataStore writes when notifications are disabled and state is already empty
+- clearNotificationState() is now called only once per disabled session instead of on every tick
+- when notifications are re-enabled then disabled again, the clear is issued once more as expected
+- 3 unit tests in MonitoringLoopRunnerTest cover single-clear-per-session for success ticks, failure
+  ticks, and re-enable/disable cycles
+```
+
+Behavior notes:
+
+```text
+- battery saver enforcement applies to always-on foreground-service monitoring only; WorkManager
+  periodic monitoring already respects the system's inexact scheduling which reduces frequency
+  during battery saver automatically
+- notification state deduplication is purely in-memory and resets when a new MonitoringLoopRunner
+  is constructed (i.e., when the service or worker restarts)
+```
+
+Validation passed:
+
+```bash
+./gradlew test ktlintCheck detekt lint
+./gradlew clean build assembleRelease
+```
+
 ### Phase 0 — Reference Scan and PLAN.md Update
 
 Tasks:
@@ -3755,36 +3791,17 @@ git commit -m "perf: reduce monitoring notification churn"
 git push
 ```
 
-## Phase 5 — Reduce State Writes
+## Phase 5 — Reduce State Writes ✓ (Iteration 41)
 
-Avoid writing DataStore or notification state on every tick.
+Implemented in Iteration 41 as part of the battery-saver slice. MonitoringLoopRunner now tracks
+an in-memory notificationStateMayBePopulated flag and skips the DataStore clearNotificationState()
+write on every subsequent tick when notifications are disabled and state is already empty.
 
-Required behavior:
-
-```text
-- write only when state changed
-- do not persist identical notification state
-- do not persist identical monitoring state
-- avoid large serialized maps if not needed
-```
-
-Check:
-
-```text
-- last successful read timestamp
-- consecutive failure count
-- last notification timestamp
-- cooldown state
-- adaptive polling state
-```
-
-Commit:
-
-```bash
-git add .
-git commit -m "perf: reduce monitoring persistence writes"
-git push
-```
+Remaining state-write reduction opportunities (not yet addressed):
+- Monitoring runtime state (lastCheckedAt) is still written on every successful or failed tick
+  because timestamps always differ; skipping these would require meaningful value-comparison logic.
+- Notification state (lastSuccessfulReadAt) is still written on every successful tick for the same
+  reason. Only the disabled-state clear path was deduplicated.
 
 ## Phase 6 — Add Simple Adaptive Backoff ✓ (Iteration 40)
 
@@ -3822,28 +3839,14 @@ git commit -m "feat: add simple adaptive polling backoff"
 git push
 ```
 
-## Phase 7 — Respect Battery Saver
+## Phase 7 — Respect Battery Saver ✓ (Iteration 41)
 
-Add simple battery-saver behavior.
+Implemented in Iteration 41. AirQualityMonitoringService enforces a 15-minute minimum delay when
+PowerManager.isPowerSaveMode is active, clamping any shorter adaptive or configured interval.
 
-Required behavior:
-
-```text
-If Android Battery Saver is enabled:
-  - increase efficient foreground interval to at least 15 minutes
-  - keep WorkManager mode at 15 minutes or longer
-  - show warning before enabling realtime mode
-```
-
-Do not request ignoring battery optimization by default.
-
-Commit:
-
-```bash
-git add .
-git commit -m "feat: respect battery saver during monitoring"
-git push
-```
+Phase 5 notification state deduplication was also completed in Iteration 41: MonitoringLoopRunner
+skips the DataStore clearNotificationState() call after the first clear when notifications remain
+disabled across multiple ticks.
 
 ## Phase 8 — Update Settings UI
 
